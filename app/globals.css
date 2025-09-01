@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* WordFlux Brand Tokens */
+:root {
+  --wf-magenta: #e50c78;
+  --wf-orange: #ef450a;
+  --wf-navy: #000023;
+  --wf-soft: #fff9f9;
+  --radius: 1.25rem;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  background: var(--wf-navy);
+  color: var(--wf-soft);
+  font-family: var(--font-body), 'Inter', system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display), 'Poppins', system-ui, sans-serif;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--wf-soft);
+}
+
+h1 { font-size: 2.5rem; }
+h2 { font-size: 2rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+h5 { font-size: 1.125rem; }
+h6 { font-size: 1rem; }
+
+/* Utility Classes */
+.card {
+  background: rgba(255, 249, 249, 0.03);
+  border: 1px solid rgba(255, 249, 249, 0.1);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--wf-magenta), var(--wf-orange));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, var(--wf-magenta), var(--wf-orange));
+}
+
+.gradient-border {
+  position: relative;
+  background: linear-gradient(var(--wf-navy), var(--wf-navy)) padding-box,
+              linear-gradient(135deg, var(--wf-magenta), var(--wf-orange)) border-box;
+  border: 2px solid transparent;
+}
+
+/* Scrollbar Styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 249, 249, 0.05);
+  border-radius: var(--radius);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 249, 249, 0.2);
+  border-radius: var(--radius);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 249, 249, 0.3);
+}
+
+/* Focus styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--wf-magenta);
+  outline-offset: 2px;
+}
