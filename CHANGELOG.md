@@ -26,3 +26,8 @@ All notable changes to this project are documented here.
   - Added "Export CSV" button in header
   - CSV includes metadata rows and all cards
   - Filename: wordflux-board-YYYY-MM-DD-HHmm.csv
+
+- v0.2.5 – Activity history (last 20)
+  - Tracks moves, edits, AI applies, and exports
+  - Stores in localStorage at `wf.history`
+  - Collapsible history panel in chat sidebar

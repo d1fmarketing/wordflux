@@ -23,6 +23,15 @@ export default async function Page() {
             <button id="chat-send" style={{padding:'12px 18px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer'}}>Send</button>
           </div>
         </div>
+        {/* Collapsible History */}
+        <div style={{borderTop:'1px solid rgba(255,249,249,0.12)'}}>
+          <button id="history-toggle" style={{width:'100%',textAlign:'left',padding:'10px 20px',background:'transparent',color:'var(--wf-soft)',border:'none',cursor:'pointer'}}>
+            📋 History
+          </button>
+          <div id="history-panel" style={{display:'none',padding:'0 20px 12px'}}>
+            <ul id="history-list" style={{listStyle:'none',margin:0,padding:0,maxHeight:160,overflowY:'auto',display:'flex',flexDirection:'column',gap:6}}></ul>
+          </div>
+        </div>
         <div style={{padding:'12px 20px',borderTop:'1px solid rgba(255,249,249,0.12)',fontSize:12,opacity:0.9}}>
           <strong>Pricing</strong>: Free (1 workspace, 2 users) · Pro $15/user/mo · Team $25/user/mo · 60% revenue share for Brazilian operators
         </div>
@@ -81,6 +90,9 @@ export default async function Page() {
   const input = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send');
   const kanban = document.getElementById('kanban');
+  const historyToggle = document.getElementById('history-toggle');
+  const historyPanel = document.getElementById('history-panel');
+  const historyList = document.getElementById('history-list');
 
   // --- Board Persistence (localStorage-first) ---
   function loadBoard() {
@@ -150,6 +162,7 @@ export default async function Page() {
       const card = col.cards.find(c=>c.id===cardId);
       if (!card) return;
       card.title = next;
+      addToHistory('Edited ' + (card.title||cardId));
       saveBoard(board);
       renderBoard(board);
       // sync to backend (best-effort)
@@ -226,6 +239,7 @@ export default async function Page() {
         if (idx < 0) return;
         const [card] = fromCol.cards.splice(idx,1);
         toCol.cards.push(card);
+        addToHistory('Moved ' + (card.title||card.id) + ' to ' + (toCol.name||toCol.id));
         saveBoard(board);
         renderBoard(board);
         try {
@@ -245,6 +259,48 @@ export default async function Page() {
   if (!board) { board = initialBoard; }
   saveBoard(board);
   renderBoard(board);
+
+  // --- History helpers ---
+  function addToHistory(action) {
+    try{
+      const history = JSON.parse(localStorage.getItem('wf.history') || '[]');
+      const time = new Date().toTimeString().slice(0,5); // HH:mm
+      history.unshift({ action, time, ts: Date.now() });
+      history.splice(20); // Keep only 20
+      localStorage.setItem('wf.history', JSON.stringify(history));
+      renderHistory();
+    } catch {}
+  }
+  function getHistory(){
+    try { return JSON.parse(localStorage.getItem('wf.history') || '[]'); } catch { return []; }
+  }
+  function renderHistory(){
+    if (!historyList) return;
+    const items = getHistory();
+    historyList.innerHTML = '';
+    if (!items.length){
+      const li = document.createElement('li');
+      li.style.fontSize = '12px';
+      li.style.opacity = '0.8';
+      li.textContent = 'No activity yet';
+      historyList.appendChild(li);
+      return;
+    }
+    items.forEach(it => {
+      const li = document.createElement('li');
+      li.style.fontSize = '12px';
+      li.style.opacity = '0.95';
+      li.textContent = '[' + it.time + '] ' + it.action;
+      historyList.appendChild(li);
+    });
+  }
+  historyToggle?.addEventListener('click', () => {
+    if (!historyPanel) return;
+    const shown = historyPanel.style.display !== 'none';
+    historyPanel.style.display = shown ? 'none' : 'block';
+    if (!shown) renderHistory();
+  });
+  renderHistory();
 
   // --- Export CSV ---
   function formatTS(d){
@@ -300,6 +356,7 @@ export default async function Page() {
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+    addToHistory('Exported board to CSV');
   }
   document.getElementById('export-csv')?.addEventListener('click', exportCSV);
 
@@ -448,6 +505,7 @@ export default async function Page() {
           if (dj && dj.board){ board = dj.board; saveBoard(board); renderBoard(board); }
         } catch {}
         showSuccess(btn, 'Applied ✓');
+        addToHistory('Applied AI: ' + (action.label||action.type));
         return;
       }
 
@@ -465,6 +523,7 @@ export default async function Page() {
         } catch {}
         renderBoard(board);
         showSuccess(btn, 'Applied ✓');
+        addToHistory('Applied AI: ' + (action.label||action.type));
         return;
       }
 
@@ -475,7 +534,7 @@ export default async function Page() {
             body: JSON.stringify({ op:'merge_columns', args: { sourceId: action.sourceId, targetId: action.targetId, newName: action.newName || undefined } })
           });
           var mj = await rm.json();
-          if (mj && mj.board){ board = mj.board; saveBoard(board); renderBoard(board); showSuccess(btn, 'Applied ✓'); return; }
+          if (mj && mj.board){ board = mj.board; saveBoard(board); renderBoard(board); showSuccess(btn, 'Applied ✓'); addToHistory('Applied AI: ' + (action.label||action.type)); return; }
         } catch {}
         // Fallback: naive local merge
         var srcIdx = board.columns.findIndex(function(c){ return c.id === action.sourceId; });
@@ -490,6 +549,7 @@ export default async function Page() {
           saveBoard(board);
           renderBoard(board);
           showSuccess(btn, 'Applied ✓');
+          addToHistory('Applied AI: ' + (action.label||action.type));
         }
         return;
       }
