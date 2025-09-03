@@ -11,3 +11,8 @@ All notable changes to this project are documented here.
   - Load board from localStorage first, fallback to SSR/API
   - Auto-save to localStorage after card moves
   - Optimistic UI updates; no page reload on move
+
+- v0.2.2 – Actionable GPT-5 suggestions
+  - Parse assistant replies for actions (move, set WIP, merge)
+  - Render inline “Apply” buttons after AI messages
+  - Execute actions with optimistic updates and persistence

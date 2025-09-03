@@ -181,8 +181,193 @@ export default async function Page() {
     div.style.background = role === 'user' ? '#1a1a2e' : '#16213e';
     div.style.whiteSpace = 'pre-wrap';
     div.textContent = text;
+
+    // If assistant, parse for actionable suggestions and render inline "Apply" buttons
+    if (role === 'assistant') {
+      const actions = parseAssistantActions(text);
+      if (actions.length) {
+        const bar = document.createElement('div');
+        bar.style.marginTop = '8px';
+        bar.style.display = 'flex';
+        bar.style.flexWrap = 'wrap';
+        bar.style.gap = '6px';
+        actions.forEach(action => {
+          const btn = document.createElement('button');
+          btn.textContent = action.label;
+          btn.style.padding = '4px 8px';
+          btn.style.fontSize = '11px';
+          btn.style.borderRadius = '999px';
+          btn.style.background = 'linear-gradient(135deg,#e50c78,#ef450a)';
+          btn.style.color = '#fff';
+          btn.style.border = 'none';
+          btn.style.cursor = 'pointer';
+          btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            await executeAssistantAction(action, btn);
+          });
+          bar.appendChild(btn);
+        });
+        div.appendChild(bar);
+      }
+    }
+
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
+  }
+
+  // --- Assistant Action Parsing & Execution ---
+  function resolveColumnId(label){
+    if (!label) return null;
+    var t = String(label).trim().replace(/^['"]|['"]$/g,'');
+    var low = t.toLowerCase();
+    var match = board.columns.find(function(c){ return c.id.toLowerCase() === low; });
+    if (match) return match.id;
+    match = board.columns.find(function(c){ return (c.name||'').toLowerCase() === low; });
+    return match ? match.id : null;
+  }
+
+  function getCardLocation(cardId){
+    for (var i=0;i<board.columns.length;i++){
+      var col = board.columns[i];
+      var idx = col.cards.findIndex(function(c){ return c.id === cardId; });
+      if (idx >= 0) return { columnId: col.id, index: idx };
+    }
+    return null;
+  }
+
+  function showSuccess(el, msg){
+    try{
+      var s = document.createElement('span');
+      s.textContent = ' ' + (msg || 'Applied ✓');
+      s.style.marginLeft = '6px';
+      s.style.fontSize = '11px';
+      s.style.color = '#4ade80';
+      el.parentElement && el.parentElement.appendChild(s);
+      setTimeout(function(){ s.remove(); }, 1600);
+    } catch {}
+  }
+
+  function parseAssistantActions(text){
+    var actions = [];
+    if (!text || typeof text !== 'string') return actions;
+
+    // Move card: "Move <cardId> to <Column>" or "Move card <cardId> to <Column>" (optional: from <Column>)
+    try {
+      var moveRe = /(\b|^)Move\s+(?:card\s+)?([A-Za-z0-9._-]+)(?:\s+from\s+[A-Za-z0-9 _-]+)?\s+to\s+([A-Za-z0-9 _-]+)/gi;
+      var m;
+      while ((m = moveRe.exec(text))){
+        var cardId = (m[2]||'').trim();
+        var toLabel = (m[3]||'').trim();
+        var loc = getCardLocation(cardId);
+        var toId = resolveColumnId(toLabel);
+        if (loc && toId && loc.columnId !== toId){
+          actions.push({ type:'move_card', cardId: cardId, toColumnId: toId, label: 'Apply: Move ' + cardId + ' to ' + toId });
+        }
+      }
+    } catch {}
+
+    // Set WIP limit: "Set WIP limit (for) <Column> to <N>"
+    try {
+      var wipRe = /Set\s+WIP\s+limit\s+(?:for\s+)?([A-Za-z0-9 _-]+)\s+(?:to|=)\s*(\d+)/gi;
+      var w;
+      while ((w = wipRe.exec(text))){
+        var colLabel = (w[1]||'').trim();
+        var limitNum = parseInt((w[2]||'').trim(), 10);
+        var cid = resolveColumnId(colLabel);
+        if (cid && !isNaN(limitNum) && limitNum >= 0){
+          actions.push({ type:'set_wip_limit', columnId: cid, limit: limitNum, label: 'Apply: WIP ' + cid + ' = ' + limitNum });
+        }
+      }
+    } catch {}
+
+    // Merge columns: "Merge (columns) <Source> into <Target> (as <NewName>)"
+    try {
+      var mergeRe = /Merge\s+(?:columns?\s*)?([A-Za-z0-9 _-]+)\s+(?:into|to|->|→)\s+([A-Za-z0-9 _-]+)(?:\s+as\s+['"]?([^'"\n]+)['"]?)?/gi;
+      var g;
+      while ((g = mergeRe.exec(text))){
+        var src = resolveColumnId((g[1]||'').trim());
+        var tgt = resolveColumnId((g[2]||'').trim());
+        var newName = g[3] ? String(g[3]).trim() : null;
+        if (src && tgt && src !== tgt){
+          var lab = 'Apply: Merge ' + src + ' → ' + tgt + (newName ? (' as ' + newName) : '');
+          actions.push({ type:'merge_columns', sourceId: src, targetId: tgt, newName: newName, label: lab });
+        }
+      }
+    } catch {}
+
+    return actions;
+  }
+
+  async function executeAssistantAction(action, btn){
+    if (!action || !action.type) return;
+    try{
+      if (action.type === 'move_card'){
+        var loc = getCardLocation(action.cardId);
+        var toCol = board.columns.find(function(c){ return c.id === action.toColumnId; });
+        if (!loc || !toCol){ btn.disabled = false; return; }
+        var fromCol = board.columns.find(function(c){ return c.id === loc.columnId; });
+        var moved = fromCol.cards.splice(loc.index, 1)[0];
+        toCol.cards.push(moved);
+        saveBoard(board);
+        renderBoard(board);
+        try{
+          var r = await fetch('/api/board/move-card', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ fromColumnId: loc.columnId, toColumnId: action.toColumnId, cardId: action.cardId })
+          });
+          var dj = await r.json();
+          if (dj && dj.board){ board = dj.board; saveBoard(board); renderBoard(board); }
+        } catch {}
+        showSuccess(btn, 'Applied ✓');
+        return;
+      }
+
+      if (action.type === 'set_wip_limit'){
+        board.wipLimits = board.wipLimits || {};
+        board.wipLimits[action.columnId] = action.limit;
+        saveBoard(board);
+        try{
+          var rw = await fetch('/api/board/apply', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ op:'set_wip_limit', args: { columnId: action.columnId, limit: action.limit } })
+          });
+          var wj = await rw.json();
+          if (wj && wj.board){ board = wj.board; saveBoard(board); }
+        } catch {}
+        renderBoard(board);
+        showSuccess(btn, 'Applied ✓');
+        return;
+      }
+
+      if (action.type === 'merge_columns'){
+        try{
+          var rm = await fetch('/api/board/apply', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ op:'merge_columns', args: { sourceId: action.sourceId, targetId: action.targetId, newName: action.newName || undefined } })
+          });
+          var mj = await rm.json();
+          if (mj && mj.board){ board = mj.board; saveBoard(board); renderBoard(board); showSuccess(btn, 'Applied ✓'); return; }
+        } catch {}
+        // Fallback: naive local merge
+        var srcIdx = board.columns.findIndex(function(c){ return c.id === action.sourceId; });
+        var tgtIdx = board.columns.findIndex(function(c){ return c.id === action.targetId; });
+        if (srcIdx >= 0 && tgtIdx >= 0 && srcIdx !== tgtIdx){
+          var srcCol = board.columns[srcIdx];
+          var tgtCol = board.columns[tgtIdx];
+          tgtCol.cards = srcCol.cards.concat(tgtCol.cards);
+          if (action.newName){ tgtCol.name = action.newName; tgtCol.id = action.newName; }
+          board.columns.splice(srcIdx,1);
+          if (board.wipLimits){ delete board.wipLimits[action.sourceId]; }
+          saveBoard(board);
+          renderBoard(board);
+          showSuccess(btn, 'Applied ✓');
+        }
+        return;
+      }
+
+    } finally {
+      // keep button disabled after success
+    }
   }
 
   async function send(){
