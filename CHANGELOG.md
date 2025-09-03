@@ -31,3 +31,9 @@ All notable changes to this project are documented here.
   - Tracks moves, edits, AI applies, and exports
   - Stores in localStorage at `wf.history`
   - Collapsible history panel in chat sidebar
+
+- v0.3.0 – GPT-5 Campaign Generator
+  - Prominent "Generate Campaign" button + modal form
+  - Sends structured prompt to GPT-5 and parses JSON plan
+  - Auto-creates phase columns and task cards with deadlines, owners
+  - Optimistic board updates + background API sync

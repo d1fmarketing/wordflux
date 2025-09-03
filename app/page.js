@@ -47,6 +47,7 @@ export default async function Page() {
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
             <div style={{padding:'6px 10px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',fontWeight:600}}>Pro $15/user/month</div>
             <button id="export-csv" style={{padding:'8px 12px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer',fontWeight:600}}>Export CSV</button>
+            <button id="open-campaign" style={{padding:'10px 14px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700}}>Generate Campaign</button>
           </div>
         </header>
         <section style={{flex:1,overflow:'auto',padding:24}}>
@@ -80,6 +81,67 @@ export default async function Page() {
         </section>
       </main>
 
+      {/* Campaign Generator Modal */}
+      <div id="campaign-modal" style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'none',alignItems:'center',justifyContent:'center',zIndex:1000}}>
+        <div style={{width:520,maxWidth:'90vw',background:'#0f0f1d',border:'1px solid rgba(255,249,249,0.12)',borderRadius:12,boxShadow:'0 10px 30px rgba(0,0,0,0.4)'}}>
+          <div style={{padding:'14px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:'1px solid rgba(255,249,249,0.12)'}}>
+            <strong>GPT-5 Campaign Generator</strong>
+            <button id="cg-close" style={{background:'transparent',border:'none',color:'#fff',cursor:'pointer',fontSize:18}}>×</button>
+          </div>
+          <div style={{padding:16,display:'grid',gap:10}}>
+            <label style={{display:'grid',gap:6}}>
+              <span style={{fontSize:12,opacity:0.9}}>Campaign Type</span>
+              <select id="cg-type" style={{padding:10,borderRadius:8,background:'#16213e',color:'#fff',border:'1px solid #333'}}>
+                <option>Social Media</option>
+                <option>Email</option>
+                <option>Content</option>
+                <option>Full Digital</option>
+              </select>
+            </label>
+            <label style={{display:'grid',gap:6}}>
+              <span style={{fontSize:12,opacity:0.9}}>Client / Brand</span>
+              <input id="cg-brand" placeholder="e.g., Nike" style={{padding:10,borderRadius:8,background:'#16213e',color:'#fff',border:'1px solid #333'}} />
+            </label>
+            <label style={{display:'grid',gap:6}}>
+              <span style={{fontSize:12,opacity:0.9}}>Duration</span>
+              <select id="cg-duration" style={{padding:10,borderRadius:8,background:'#16213e',color:'#fff',border:'1px solid #333'}}>
+                <option>1 week</option>
+                <option>2 weeks</option>
+                <option>1 month</option>
+                <option>3 months</option>
+              </select>
+            </label>
+            <label style={{display:'grid',gap:6}}>
+              <span style={{fontSize:12,opacity:0.9}}>Budget</span>
+              <select id="cg-budget" style={{padding:10,borderRadius:8,background:'#16213e',color:'#fff',border:'1px solid #333'}}>
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+              </select>
+            </label>
+            <label style={{display:'grid',gap:6}}>
+              <span style={{fontSize:12,opacity:0.9}}>Target Audience</span>
+              <input id="cg-audience" placeholder="e.g., Athletes 18-25" style={{padding:10,borderRadius:8,background:'#16213e',color:'#fff',border:'1px solid #333'}} />
+            </label>
+            <label style={{display:'grid',gap:6}}>
+              <span style={{fontSize:12,opacity:0.9}}>Goals</span>
+              <select id="cg-goals" multiple style={{padding:10,borderRadius:8,background:'#16213e',color:'#fff',border:'1px solid #333',height:84}}>
+                <option>Brand Awareness</option>
+                <option>Lead Gen</option>
+                <option>Sales</option>
+                <option>Engagement</option>
+              </select>
+              <span style={{fontSize:11,opacity:0.7}}>Tip: Cmd/Ctrl-click to select multiple</span>
+            </label>
+            <div style={{display:'flex',justifyContent:'flex-end',gap:10,marginTop:6}}>
+              <button id="cg-cancel" style={{padding:'10px 14px',borderRadius:8,background:'#1a1a2e',color:'#fff',border:'1px solid #333',cursor:'pointer'}}>Cancel</button>
+              <button id="cg-generate" style={{padding:'10px 14px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700}}>Generate</button>
+            </div>
+            <div id="cg-status" style={{fontSize:12,opacity:0.85}}></div>
+          </div>
+        </div>
+      </div>
+
       {/* Inline script: simple fetch() handlers for chat and moves */}
       <script
         dangerouslySetInnerHTML={{
@@ -93,6 +155,18 @@ export default async function Page() {
   const historyToggle = document.getElementById('history-toggle');
   const historyPanel = document.getElementById('history-panel');
   const historyList = document.getElementById('history-list');
+  const campaignModal = document.getElementById('campaign-modal');
+  const openCampaignBtn = document.getElementById('open-campaign');
+  const cgClose = document.getElementById('cg-close');
+  const cgCancel = document.getElementById('cg-cancel');
+  const cgGenerate = document.getElementById('cg-generate');
+  const cgStatus = document.getElementById('cg-status');
+  const cgType = document.getElementById('cg-type');
+  const cgBrand = document.getElementById('cg-brand');
+  const cgDuration = document.getElementById('cg-duration');
+  const cgBudget = document.getElementById('cg-budget');
+  const cgAudience = document.getElementById('cg-audience');
+  const cgGoals = document.getElementById('cg-goals');
 
   // --- Board Persistence (localStorage-first) ---
   function loadBoard() {
@@ -359,6 +433,138 @@ export default async function Page() {
     addToHistory('Exported board to CSV');
   }
   document.getElementById('export-csv')?.addEventListener('click', exportCSV);
+
+  // --- Campaign Generator ---
+  function showCampaignModal(show){ if (!campaignModal) return; campaignModal.style.display = show ? 'flex' : 'none'; }
+  openCampaignBtn?.addEventListener('click', function(){ showCampaignModal(true); });
+  cgClose?.addEventListener('click', function(){ showCampaignModal(false); cgStatus && (cgStatus.textContent=''); });
+  cgCancel?.addEventListener('click', function(){ showCampaignModal(false); cgStatus && (cgStatus.textContent=''); });
+
+  function getSelectedGoals(){
+    var arr=[]; if (!cgGoals) return arr; for (var i=0;i<cgGoals.options.length;i++){ var o=cgGoals.options[i]; if (o.selected) arr.push(o.value); }
+    return arr;
+  }
+  function daysForDuration(text){
+    var t=(text||'').toLowerCase();
+    if (t.indexOf('3 months')>=0) return 90;
+    if (t.indexOf('1 month')>=0) return 30;
+    if (t.indexOf('2 weeks')>=0) return 14;
+    return 7;
+  }
+  function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,20); }
+  function ensureColumn(id, name){
+    var exist = board.columns.find(function(c){ return c.id===id || c.name===name; });
+    if (exist) return exist.id;
+    board.columns.push({ id:id, name:name, cards:[] });
+    saveBoard(board); renderBoard(board);
+    fetch('/api/board/apply', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ op:'add_column', args:{ id, name } }) }).catch(function(){});
+    return id;
+  }
+  function chooseOwner(title){
+    var t=(title||'').toLowerCase();
+    if (t.indexOf('plan')>=0||t.indexOf('strategy')>=0) return 'strategy';
+    if (t.indexOf('design')>=0||t.indexOf('creative')>=0||t.indexOf('visual')>=0) return 'design';
+    if (t.indexOf('copy')>=0||t.indexOf('write')>=0||t.indexOf('content')>=0||t.indexOf('script')>=0) return 'copy';
+    if (t.indexOf('ads')>=0||t.indexOf('media')>=0||t.indexOf('buy')>=0||t.indexOf('campaign')>=0) return 'media';
+    if (t.indexOf('analytics')>=0||t.indexOf('report')>=0||t.indexOf('measure')>=0) return 'analytics';
+    return 'pm';
+  }
+  function addCard(columnId, title, desc, owner, priority){
+    var col = board.columns.find(function(c){ return c.id===columnId; });
+    if (!col) return;
+    var cid = (title||'new').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20) + '-' + Date.now();
+    var card = { id: cid, title: title||'New Task', desc: desc||'', owner: owner||'', priority: priority||'m' };
+    col.cards.push(card);
+    saveBoard(board); renderBoard(board);
+    fetch('/api/board/apply', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ op:'add_card', args:{ columnId: columnId, title: title, desc: card.desc, owner: card.owner, priority: card.priority, id: cid } }) }).catch(function(){});
+  }
+  function distributeDueDates(phases, totalDays){
+    var now = new Date();
+    function fmt(d){ var y=d.getFullYear(); var m=(''+(d.getMonth()+1)).padStart(2,'0'); var da=(''+d.getDate()).padStart(2,'0'); return y+'-'+m+'-'+da; }
+    var phaseRatios = { 'planning':0.2, 'creation':0.5, 'launch':0.2, 'analysis':0.1 };
+    var dayCursor = 0;
+    phases.forEach(function(ph){
+      var key = slug(ph.name||'');
+      var windowDays = Math.max(1, Math.round((phaseRatios[key]||0.25) * totalDays));
+      var tasks = ph.tasks||[];
+      for (var i=0;i<tasks.length;i++){
+        var t = tasks[i];
+        var offset = (typeof t.daysFromStart==='number' ? t.daysFromStart : Math.min(dayCursor + i, totalDays-1));
+        var d = new Date(now.getTime() + offset*24*60*60*1000);
+        t._due = fmt(d);
+      }
+      dayCursor += windowDays;
+    });
+  }
+  function extractJSON(text){
+    if (!text) return null;
+    // Try whole string first
+    try{ return JSON.parse(text); }catch(e){}
+    // Try extracting the first balanced JSON object
+    var i = text.indexOf('{');
+    if (i>=0){
+      var depth=0; for (var j=i;j<text.length;j++){
+        var ch = text[j];
+        if (ch==='{' ) depth++;
+        else if (ch==='}') { depth--; if (depth===0){ var sub = text.slice(i,j+1); try{ return JSON.parse(sub); } catch(e2){} break; } }
+      }
+    }
+    return null;
+  }
+  async function generateCampaign(){
+    if (!cgGenerate) return; cgGenerate.disabled = true; if (cgStatus) cgStatus.textContent = 'Generating campaign with GPT-5...';
+    try{
+      var type = cgType ? cgType.value : 'Full Digital';
+      var brand = (cgBrand ? cgBrand.value : '').trim() || 'Client';
+      var duration = cgDuration ? cgDuration.value : '1 month';
+      var budget = cgBudget ? cgBudget.value : 'Medium';
+      var audience = (cgAudience ? cgAudience.value : '').trim() || 'General';
+      var goalsArr = getSelectedGoals();
+      var goals = goalsArr.length ? goalsArr.join(', ') : 'Brand Awareness';
+
+      var prompt = 'Generate a complete '+type+' campaign for '+brand+' lasting '+duration+' targeting '+audience+' with a '+budget+' budget focused on '+goals+'. Create specific tasks with deadlines, owners, and descriptions. Return ONLY valid JSON with keys: campaign {type, brand, duration, budget, audience, goals[]}, phases[] where each phase has name and tasks[] with title, description, owner (role), priority (l|m|h), and optional daysFromStart (integer). No commentary.';
+
+      var res = await fetch('/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message: prompt }) });
+      var data = await res.json();
+      var plan = extractJSON(data && (data.response||data.reply));
+
+      if (!plan || !plan.phases || !plan.phases.length){
+        if (cgStatus) cgStatus.textContent = 'AI did not return a structured plan. Creating a basic scaffold...';
+        plan = { campaign: { type:type, brand:brand, duration:duration, budget:budget, audience:audience, goals:goalsArr }, phases:[
+          { name:'Planning', tasks:[ { title:'Kickoff + Strategy Brief', description:'Define objectives, channels, KPIs.', owner:'strategy', priority:'h' } ] },
+          { name:'Creation', tasks:[ { title:'Produce content set', description:'Copy + design assets per channel.', owner:'design', priority:'m' } ] },
+          { name:'Launch', tasks:[ { title:'Publish & monitor', description:'Schedule posts and monitor spend.', owner:'media', priority:'m' } ] },
+          { name:'Analysis', tasks:[ { title:'Report & learnings', description:'Analyze performance and propose next steps.', owner:'analytics', priority:'m' } ] }
+        ] };
+      }
+
+      var totalDays = daysForDuration(duration);
+      distributeDueDates(plan.phases, totalDays);
+
+      var phases = plan.phases || [];
+      var created = 0;
+      phases.forEach(function(ph){
+        var name = ph.name || 'Phase';
+        var id = slug(name) || 'phase';
+        var colId = ensureColumn(id, name);
+        (ph.tasks||[]).forEach(function(t){
+          var title = t.title || 'Task';
+          var owner = t.owner || chooseOwner(title);
+          var pr = (t.priority==='l'||t.priority==='m'||t.priority==='h') ? t.priority : 'm';
+          var desc = (t.description||'') + (t._due ? '\nDue: '+t._due : '');
+          addCard(colId, title, desc, owner, pr);
+          created++;
+        });
+      });
+
+      addToHistory('Generated campaign for ' + brand + ' (' + type + '): ' + created + ' tasks');
+      if (cgStatus) cgStatus.textContent = 'Campaign created: ' + created + ' tasks added.';
+      setTimeout(function(){ showCampaignModal(false); cgStatus && (cgStatus.textContent=''); }, 800);
+
+    } catch(e){ if (cgStatus) cgStatus.textContent = 'Error generating campaign.'; }
+    finally { if (cgGenerate) cgGenerate.disabled = false; }
+  }
+  cgGenerate?.addEventListener('click', generateCampaign);
 
   function addBubble(role, text){
     const div = document.createElement('div');
