@@ -35,7 +35,10 @@ export default async function Page() {
             <h1 style={{margin:0,fontSize:20,lineHeight:1.2}}>WordFlux Board</h1>
             <div style={{opacity:0.85,fontSize:12}}>Magenta/Orange accents • Dark theme • Gradient header</div>
           </div>
-          <div style={{padding:'6px 10px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',fontWeight:600}}>Pro $15/user/month</div>
+          <div style={{display:'flex',gap:10,alignItems:'center'}}>
+            <div style={{padding:'6px 10px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',fontWeight:600}}>Pro $15/user/month</div>
+            <button id="export-csv" style={{padding:'8px 12px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer',fontWeight:600}}>Export CSV</button>
+          </div>
         </header>
         <section style={{flex:1,overflow:'auto',padding:24}}>
           <div id="kanban" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
@@ -242,6 +245,63 @@ export default async function Page() {
   if (!board) { board = initialBoard; }
   saveBoard(board);
   renderBoard(board);
+
+  // --- Export CSV ---
+  function formatTS(d){
+    const pad = n=>String(n).padStart(2,'0');
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth()+1);
+    const dd = pad(d.getDate());
+    const HH = pad(d.getHours());
+    const MM = pad(d.getMinutes());
+    const SS = pad(d.getSeconds());
+    return { stamp: (''+yyyy+'-'+mm+'-'+dd+'-'+HH+MM), human: (''+yyyy+'-'+mm+'-'+dd+' '+HH+':'+MM+':'+SS) };
+  }
+  function csvEscape(s){
+    const v = s==null?'' : String(s).replace(/\r?\n/g,' ').replace(/"/g,'""');
+    return '"'+v+'"';
+  }
+  function statusFromColumn(id){
+    const cid = String(id||'').toLowerCase();
+    if (cid === 'backlog') return 'pending';
+    if (cid === 'doing') return 'in_progress';
+    if (cid === 'done') return 'done';
+    return cid || 'unknown';
+  }
+  function exportCSV(){
+    const now = new Date();
+    const { stamp, human } = formatTS(now);
+    // Count cards
+    let total = 0;
+    board.columns.forEach(c=>{ total += (c.cards?.length||0); });
+    const lines = [];
+    lines.push(csvEscape('Exported At')+','+csvEscape(human));
+    lines.push(csvEscape('Total Cards')+','+csvEscape(total));
+    lines.push(['Column','Card Title','Owner','Priority','Description','Status'].map(csvEscape).join(','));
+    board.columns.forEach(col => {
+      (col.cards||[]).forEach(card => {
+        const row = [
+          col.name || col.id || '',
+          card.title || '',
+          card.owner || '',
+          card.priority || '',
+          card.desc || '',
+          statusFromColumn(col.id || col.name)
+        ].map(csvEscape).join(',');
+        lines.push(row);
+      });
+    });
+    const csv = lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'wordflux-board-' + stamp + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+  document.getElementById('export-csv')?.addEventListener('click', exportCSV);
 
   function addBubble(role, text){
     const div = document.createElement('div');

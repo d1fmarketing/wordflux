@@ -21,3 +21,8 @@ All notable changes to this project are documented here.
   - Double-click card title to edit inline
   - Enter or click outside saves; Escape cancels
   - Immediate localStorage save + server sync
+
+- v0.2.4 – Export board to CSV
+  - Added "Export CSV" button in header
+  - CSV includes metadata rows and all cards
+  - Filename: wordflux-board-YYYY-MM-DD-HHmm.csv
