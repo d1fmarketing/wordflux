@@ -106,6 +106,73 @@ export default async function Page() {
     return el;
   }
 
+  // --- Inline title editing (dblclick) ---
+  function wireTitleEditing(titleEl, columnId, cardId){
+    if (!titleEl) return;
+    titleEl.style.cursor = 'text';
+    titleEl.addEventListener('dblclick', () => startTitleEdit(titleEl, columnId, cardId));
+  }
+
+  function startTitleEdit(el, columnId, cardId){
+    const original = (el.textContent || '').trim();
+    el.contentEditable = 'true';
+    el.spellcheck = false;
+    el.style.outline = '1px solid #e50c78';
+    el.style.outlineOffset = '2px';
+    // focus and select all text
+    el.focus();
+    try{
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch {}
+
+    function cleanup(){
+      el.contentEditable = 'false';
+      el.style.outline = '';
+      el.style.outlineOffset = '';
+      el.removeEventListener('keydown', onKey);
+      el.removeEventListener('blur', onBlur);
+    }
+
+    function commit(){
+      const next = (el.textContent || '').trim();
+      cleanup();
+      if (!next){ el.textContent = original; return; }
+      if (next === original) return;
+      const col = board.columns.find(c=>c.id===columnId);
+      if (!col) return;
+      const card = col.cards.find(c=>c.id===cardId);
+      if (!card) return;
+      card.title = next;
+      saveBoard(board);
+      renderBoard(board);
+      // sync to backend (best-effort)
+      fetch('/api/board/apply', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op:'update_card', args: { columnId, cardId, title: next } })
+      }).then(r=>r.json()).then(d=>{
+        if (d && d.board){ board = d.board; saveBoard(board); renderBoard(board); }
+      }).catch(()=>{});
+    }
+
+    function cancel(){
+      cleanup();
+      el.textContent = original;
+    }
+
+    function onKey(e){
+      if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+      if (e.key === 'Escape') { e.preventDefault(); el.removeEventListener('blur', onBlur); cancel(); }
+    }
+    function onBlur(){ commit(); }
+
+    el.addEventListener('keydown', onKey);
+    el.addEventListener('blur', onBlur);
+  }
+
   function renderBoard(b){
     if (!kanban) return;
     kanban.innerHTML = '';
@@ -118,7 +185,9 @@ export default async function Page() {
       col.cards.forEach(card => {
         const cardEl = h('div', { style: { background:'#0f0f1d', padding:'12px', marginBottom:'10px', borderRadius:'8px', border:'1px solid rgba(255,249,249,0.08)' } });
         const row = h('div', { style: { display:'flex', justifyContent:'space-between', gap:'8px', alignItems:'center' } });
-        row.appendChild(h('h4', { style: { margin:0, fontSize:'14px' } }, [ card.title ]));
+        const titleEl = h('h4', { style: { margin:0, fontSize:'14px', cursor:'text' } }, [ card.title ]);
+        wireTitleEditing(titleEl, col.id, card.id);
+        row.appendChild(titleEl);
         row.appendChild(h('span', { style: { fontSize:'11px', opacity:0.75 } }, [ card.owner || '' ]));
         cardEl.appendChild(row);
         if (card.desc) cardEl.appendChild(h('p', { style: { margin:'6px 0 10px', fontSize:'12px', opacity:0.8 } }, [ card.desc ]));

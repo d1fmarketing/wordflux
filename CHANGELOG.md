@@ -16,3 +16,8 @@ All notable changes to this project are documented here.
   - Parse assistant replies for actions (move, set WIP, merge)
   - Render inline “Apply” buttons after AI messages
   - Execute actions with optimistic updates and persistence
+
+- v0.2.3 – Card quick edit (inline)
+  - Double-click card title to edit inline
+  - Enter or click outside saves; Escape cancels
+  - Immediate localStorage save + server sync
