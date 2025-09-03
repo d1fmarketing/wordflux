@@ -51,6 +51,7 @@ export default async function Page() {
             <span id="board-meta" style={{fontSize:12,opacity:0.8}}>Board 1 of 1</span>
             <div style={{padding:'6px 10px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',fontWeight:600}}>Pro $15/user/month</div>
             <button id="export-csv" style={{padding:'8px 12px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer',fontWeight:600}}>Export CSV</button>
+            <button id="share-whatsapp" title="Share to WhatsApp" style={{padding:'8px 12px',borderRadius:8,background:'linear-gradient(135deg,#25D366,#128C7E)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700}}>📱 Share</button>
             <button id="open-campaign" style={{padding:'10px 14px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700}}>Generate Campaign</button>
           </div>
         </header>
@@ -158,6 +159,7 @@ export default async function Page() {
   const kanban = document.getElementById('kanban');
   const boardSelect = document.getElementById('board-select');
   const boardMeta = document.getElementById('board-meta');
+  const shareBtn = document.getElementById('share-whatsapp');
   const historyToggle = document.getElementById('history-toggle');
   const historyPanel = document.getElementById('history-panel');
   const historyList = document.getElementById('history-list');
@@ -522,6 +524,44 @@ export default async function Page() {
     addToHistory('Exported board to CSV');
   }
   document.getElementById('export-csv')?.addEventListener('click', exportCSV);
+
+  // --- WhatsApp Share ---
+  function getCurrentBoardName(){
+    var list = getBoards();
+    var curId = getCurrentBoardId();
+    var cur = null;
+    for (var i=0;i<list.length;i++){ if (list[i].id===curId){ cur = list[i]; break; } }
+    return (cur && (cur.name||cur.id)) || 'Board';
+  }
+  function getBoardSummary(){
+    var name = getCurrentBoardName();
+    var todo = 0, doing = 0, done = 0;
+    board.columns.forEach(function(col){
+      if (col.id === 'Done') done = (col.cards||[]).length;
+      else if (col.id === 'Doing') doing = (col.cards||[]).length;
+      else todo += (col.cards||[]).length;
+    });
+    var items = getHistory().slice(0,3).map(function(h){ return h.action; });
+    var recent = items.length ? ('\nRecent: ' + items.join(', ')) : '';
+    var link = (typeof location!=='undefined' ? location.href : '');
+    var text = '\ud83d\udcca *' + name + '*\n' +
+               '\u2705 Completed: ' + done + '\n' +
+               '\ud83d\udd04 In Progress: ' + doing + '\n' +
+               '\ud83d\udcdd To Do: ' + todo + '\n' +
+               recent + '\n\n' +
+               'View full board: ' + link;
+    return text;
+  }
+  function shareWhatsApp(){
+    try{
+      var text = getBoardSummary();
+      var encoded = encodeURIComponent(text);
+      var url = 'https://wa.me/?text=' + encoded;
+      try{ window.open(url, '_blank'); }catch(e){ location.href = url; }
+      addToHistory('Shared board via WhatsApp');
+    } catch {}
+  }
+  shareBtn?.addEventListener('click', shareWhatsApp);
 
   // --- Campaign Generator ---
   function showCampaignModal(show){ if (!campaignModal) return; campaignModal.style.display = show ? 'flex' : 'none'; }

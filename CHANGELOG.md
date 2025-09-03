@@ -42,3 +42,8 @@ All notable changes to this project are documented here.
   - Board selector with create-new and index display
   - Per-board storage keys and history
   - Export filenames include board name
+
+- v0.3.2 – WhatsApp share
+  - One-click share to WhatsApp with board summary
+  - Includes last 3 recent activities
+  - Works per selected board
