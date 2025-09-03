@@ -37,3 +37,8 @@ All notable changes to this project are documented here.
   - Sends structured prompt to GPT-5 and parses JSON plan
   - Auto-creates phase columns and task cards with deadlines, owners
   - Optimistic board updates + background API sync
+
+- v0.3.1 – Multiple boards
+  - Board selector with create-new and index display
+  - Per-board storage keys and history
+  - Export filenames include board name

@@ -45,6 +45,10 @@ export default async function Page() {
             <div style={{opacity:0.85,fontSize:12}}>Magenta/Orange accents • Dark theme • Gradient header</div>
           </div>
           <div style={{display:'flex',gap:10,alignItems:'center'}}>
+            <select id="board-select" style={{padding:'6px 10px',borderRadius:8,background:'#1a1a2e',color:'#fff',border:'1px solid #333',cursor:'pointer'}}>
+              <option>Default Board</option>
+            </select>
+            <span id="board-meta" style={{fontSize:12,opacity:0.8}}>Board 1 of 1</span>
             <div style={{padding:'6px 10px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',fontWeight:600}}>Pro $15/user/month</div>
             <button id="export-csv" style={{padding:'8px 12px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer',fontWeight:600}}>Export CSV</button>
             <button id="open-campaign" style={{padding:'10px 14px',borderRadius:8,background:'linear-gradient(135deg,#e50c78,#ef450a)',color:'#fff',border:'none',cursor:'pointer',fontWeight:700}}>Generate Campaign</button>
@@ -152,6 +156,8 @@ export default async function Page() {
   const input = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send');
   const kanban = document.getElementById('kanban');
+  const boardSelect = document.getElementById('board-select');
+  const boardMeta = document.getElementById('board-meta');
   const historyToggle = document.getElementById('history-toggle');
   const historyPanel = document.getElementById('history-panel');
   const historyList = document.getElementById('history-list');
@@ -168,16 +174,66 @@ export default async function Page() {
   const cgAudience = document.getElementById('cg-audience');
   const cgGoals = document.getElementById('cg-goals');
 
-  // --- Board Persistence (localStorage-first) ---
+  // --- Multi-Board Management + Persistence ---
+  function slugName(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  function getBoards(){ try{ return JSON.parse(localStorage.getItem('wf.boards')||'[]'); }catch{ return []; } }
+  function setBoards(arr){ try{ localStorage.setItem('wf.boards', JSON.stringify(arr)); }catch{} }
+  function getCurrentBoardId(){
+    var list = getBoards();
+    var cur = list.find(function(x){ return x.current; });
+    return cur ? cur.id : (list[0] ? list[0].id : null);
+  }
+  function setCurrentBoardId(id){
+    var list = getBoards();
+    list.forEach(function(b){ b.current = (b.id===id); });
+    setBoards(list);
+  }
+  function ensureMigration(){
+    var list = getBoards();
+    if (list.length) return;
+    // Migrate single-board to multi-board
+    var legacy = null;
+    try{ legacy = JSON.parse(localStorage.getItem('wf.board')||'null'); }catch{}
+    var id = 'board-1';
+    var name = 'Default Board';
+    setBoards([{ id: id, name: name, current: true }]);
+    if (legacy){ try{ localStorage.setItem('wf.'+id, JSON.stringify(legacy)); }catch{} }
+    else { try{ localStorage.setItem('wf.'+id, JSON.stringify(initialBoard)); }catch{} }
+  }
+  function getBoardKey(id){ return 'wf.' + id; }
   function loadBoard() {
-    try {
-      const raw = localStorage.getItem('wf.board');
+    ensureMigration();
+    var id = getCurrentBoardId();
+    try{
+      var raw = localStorage.getItem(getBoardKey(id));
       if (raw) return JSON.parse(raw);
-    } catch {}
+    }catch{}
     return initialBoard;
   }
-  function saveBoard(b) {
-    try { localStorage.setItem('wf.board', JSON.stringify(b)); } catch {}
+  function loadBoardById(id){
+    try{ var raw = localStorage.getItem(getBoardKey(id)); if (raw) return JSON.parse(raw); }catch{}
+    return { id: 'default', columns: [], wipLimits: {} };
+  }
+  function saveBoard(b){
+    try{
+      var id = getCurrentBoardId();
+      localStorage.setItem(getBoardKey(id), JSON.stringify(b));
+    }catch{}
+  }
+  function renderBoardSelector(){
+    if (!boardSelect) return;
+    var list = getBoards();
+    var curId = getCurrentBoardId();
+    boardSelect.innerHTML='';
+    list.forEach(function(item){
+      var opt = document.createElement('option');
+      opt.value = item.id; opt.textContent = item.name || item.id; opt.selected = (item.id===curId);
+      boardSelect.appendChild(opt);
+    });
+    var optNew = document.createElement('option'); optNew.value = '__new__'; optNew.textContent = '➕ New Board';
+    boardSelect.appendChild(optNew);
+    // Meta: index + count
+    if (boardMeta){ var idx = Math.max(0, list.findIndex(function(x){ return x.id===curId; })); boardMeta.textContent = 'Board ' + (idx+1) + ' of ' + list.length; }
   }
 
   function h(tag, attrs = {}, children = []){
@@ -328,6 +384,7 @@ export default async function Page() {
     });
   }
 
+  ensureMigration();
   let board = loadBoard();
   // If nothing in localStorage, seed it with initial SSR board
   if (!board) { board = initialBoard; }
@@ -337,16 +394,17 @@ export default async function Page() {
   // --- History helpers ---
   function addToHistory(action) {
     try{
-      const history = JSON.parse(localStorage.getItem('wf.history') || '[]');
+      const curId = getCurrentBoardId();
+      const history = JSON.parse(localStorage.getItem('wf.history.'+curId) || '[]');
       const time = new Date().toTimeString().slice(0,5); // HH:mm
       history.unshift({ action, time, ts: Date.now() });
       history.splice(20); // Keep only 20
-      localStorage.setItem('wf.history', JSON.stringify(history));
+      localStorage.setItem('wf.history.'+curId, JSON.stringify(history));
       renderHistory();
     } catch {}
   }
   function getHistory(){
-    try { return JSON.parse(localStorage.getItem('wf.history') || '[]'); } catch { return []; }
+    try { const curId = getCurrentBoardId(); return JSON.parse(localStorage.getItem('wf.history.'+curId) || '[]'); } catch { return []; }
   }
   function renderHistory(){
     if (!historyList) return;
@@ -375,6 +433,32 @@ export default async function Page() {
     if (!shown) renderHistory();
   });
   renderHistory();
+  renderBoardSelector();
+
+  boardSelect?.addEventListener('change', function(){
+    var val = boardSelect.value;
+    if (val === '__new__'){
+      var list = getBoards();
+      var nextNum = 1;
+      list.forEach(function(b){ var m = /^board-(\d+)$/.exec(b.id); if (m){ nextNum = Math.max(nextNum, parseInt(m[1],10)+1); }});
+      var name = window.prompt('New board name:', 'New Board');
+      if (!name) { renderBoardSelector(); return; }
+      var id = 'board-' + nextNum;
+      list.forEach(function(b){ b.current=false; });
+      list.push({ id, name, current:true });
+      setBoards(list);
+      setCurrentBoardId(id);
+      var empty = { id: 'default', columns: [], wipLimits: {} };
+      try{ localStorage.setItem(getBoardKey(id), JSON.stringify(empty)); }catch{}
+      board = empty; renderBoard(board); renderHistory(); renderBoardSelector();
+      return;
+    }
+    // Switching existing board
+    setCurrentBoardId(val);
+    // save current already done via saveBoard() on actions; just load new
+    board = loadBoardById(val);
+    renderBoard(board); renderHistory(); renderBoardSelector();
+  });
 
   // --- Export CSV ---
   function formatTS(d){
@@ -404,6 +488,11 @@ export default async function Page() {
     // Count cards
     let total = 0;
     board.columns.forEach(c=>{ total += (c.cards?.length||0); });
+    // Board name for filename
+    const list = getBoards();
+    const curId = getCurrentBoardId();
+    const curMeta = list.find(x=>x.id===curId);
+    const bname = curMeta?.name || curId || 'board';
     const lines = [];
     lines.push(csvEscape('Exported At')+','+csvEscape(human));
     lines.push(csvEscape('Total Cards')+','+csvEscape(total));
@@ -426,7 +515,7 @@ export default async function Page() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'wordflux-board-' + stamp + '.csv';
+    a.download = 'wordflux-' + slugName(bname) + '-' + stamp + '.csv';
     document.body.appendChild(a);
     a.click();
     setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
