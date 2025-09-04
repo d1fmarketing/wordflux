@@ -17,6 +17,7 @@ window.initWordFlux = function() {
   const log = document.getElementById('chat-log');
   const input = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send');
+  const clearBtn = document.getElementById('chat-clear');
   const campaignModal = document.getElementById('campaign-modal');
   const openCampaignBtn = document.getElementById('open-campaign');
   const cgClose = document.getElementById('cg-close');
@@ -25,52 +26,108 @@ window.initWordFlux = function() {
   const menuMoreBtn = document.getElementById('menu-more');
   const menuPanel = document.getElementById('menu-panel');
   
-  // Chat handler
+  // Mobile drawer elements
+  const chatToggle = document.getElementById('chat-toggle');
+  const chatSidebar = document.getElementById('chat-sidebar');
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+  const sidebarClose = document.getElementById('sidebar-close');
+  
+  // Mobile drawer toggle handler
+  if (chatToggle && chatSidebar) {
+    chatToggle.addEventListener('click', function() {
+      chatSidebar.classList.toggle('-translate-x-full');
+      chatSidebar.classList.toggle('translate-x-0');
+      sidebarBackdrop.classList.toggle('hidden');
+      sidebarBackdrop.classList.toggle('block');
+    });
+  }
+  
+  if (sidebarClose && chatSidebar) {
+    sidebarClose.addEventListener('click', function() {
+      chatSidebar.classList.add('-translate-x-full');
+      chatSidebar.classList.remove('translate-x-0');
+      sidebarBackdrop.classList.add('hidden');
+      sidebarBackdrop.classList.remove('block');
+    });
+  }
+  
+  if (sidebarBackdrop && chatSidebar) {
+    sidebarBackdrop.addEventListener('click', function() {
+      chatSidebar.classList.add('-translate-x-full');
+      chatSidebar.classList.remove('translate-x-0');
+      sidebarBackdrop.classList.add('hidden');
+      sidebarBackdrop.classList.remove('block');
+    });
+  }
+  
+  // Chat send handler
+  async function sendMessage() {
+    const message = input.value.trim();
+    if (!message) return;
+    
+    // Add user message
+    const userDiv = document.createElement('div');
+    userDiv.className = 'p-3 rounded-lg bg-[#1a1a2e] text-[var(--wf-soft)]';
+    userDiv.textContent = message;
+    log.appendChild(userDiv);
+    
+    input.value = '';
+    input.style.height = 'auto'; // Reset textarea height
+    log.scrollTop = log.scrollHeight; // Scroll to bottom
+    
+    // Call API
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: message }] })
+      });
+      
+      const data = await response.json();
+      
+      // Add AI response
+      const aiDiv = document.createElement('div');
+      aiDiv.className = 'p-3 rounded-lg bg-[var(--surface-alt)] text-[var(--wf-soft)]';
+      aiDiv.textContent = data.response || 'Sem resposta';
+      log.appendChild(aiDiv);
+      
+      // Scroll to bottom
+      log.scrollTop = log.scrollHeight;
+    } catch (e) {
+      console.error('Chat error:', e);
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'p-3 rounded-lg bg-red-600 text-white';
+      errorDiv.textContent = 'Erro ao conectar com GPT-5';
+      log.appendChild(errorDiv);
+    }
+  }
+  
+  // Chat handlers
   if (sendBtn && input) {
-    sendBtn.addEventListener('click', async function() {
-      const message = input.value.trim();
-      if (!message) return;
-      
-      // Add user message
-      const userDiv = document.createElement('div');
-      userDiv.style.cssText = 'padding:12px;border-radius:8px;background:#1a1a2e;color:#fff9f9;margin-bottom:10px';
-      userDiv.textContent = message;
-      log.appendChild(userDiv);
-      
-      input.value = '';
-      
-      // Call API
-      try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [{ role: 'user', content: message }] })
-        });
-        
-        const data = await response.json();
-        
-        // Add AI response
-        const aiDiv = document.createElement('div');
-        aiDiv.style.cssText = 'padding:12px;border-radius:8px;background:#16213e;color:#fff9f9';
-        aiDiv.textContent = data.response || 'Sem resposta';
-        log.appendChild(aiDiv);
-        
-        // Scroll to bottom
-        log.scrollTop = log.scrollHeight;
-      } catch (e) {
-        console.error('Chat error:', e);
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = 'padding:12px;border-radius:8px;background:#dc2626;color:#fff';
-        errorDiv.textContent = 'Erro ao conectar com GPT-5';
-        log.appendChild(errorDiv);
+    sendBtn.addEventListener('click', sendMessage);
+    
+    // Keyboard shortcuts: Enter to send, Shift+Enter for newline
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
       }
     });
     
-    // Enter key to send
-    input.addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        sendBtn.click();
-      }
+    // Auto-resize textarea
+    input.addEventListener('input', function() {
+      this.style.height = 'auto';
+      this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+  }
+  
+  // Clear chat button
+  if (clearBtn && log) {
+    clearBtn.addEventListener('click', function() {
+      // Keep only the initial message
+      const firstMessage = log.firstElementChild;
+      log.innerHTML = '';
+      if (firstMessage) log.appendChild(firstMessage);
     });
   }
   
@@ -150,6 +207,41 @@ window.initWordFlux = function() {
       }
     });
   }
+  
+  // WIP badge click handlers - make them editable
+  document.querySelectorAll('[data-wip-badge]').forEach(badge => {
+    badge.addEventListener('click', async function() {
+      const columnId = badge.getAttribute('data-wip-badge');
+      const currentLimit = badge.textContent.includes('/') 
+        ? parseInt(badge.textContent.split('/')[1]) 
+        : null;
+      
+      const newLimit = prompt(`Set WIP limit for column (0 to remove):`, currentLimit || '');
+      if (newLimit === null) return;
+      
+      const limit = parseInt(newLimit);
+      if (isNaN(limit) || limit < 0) {
+        alert('Please enter a valid number');
+        return;
+      }
+      
+      try {
+        await fetch('/api/board/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            op: 'set_wip_limit',
+            args: { columnId, limit: limit || null }
+          })
+        });
+        
+        location.reload();
+      } catch (e) {
+        console.error('WIP limit error:', e);
+        alert('Failed to update WIP limit');
+      }
+    });
+  });
   
   // Move card handlers
   document.querySelectorAll('button[data-move="true"]').forEach(btn => {

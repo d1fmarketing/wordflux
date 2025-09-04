@@ -4,13 +4,16 @@
 
 /* WordFlux Brand Tokens */
 :root {
-  /* Legacy tokens (will be phased out) */
+  /* Core design tokens as specified */
   --wf-magenta: #e50c78;
   --wf-orange: #ef450a;
   --wf-navy: #000023;
   --wf-soft: #fff9f9;
-  --wf-gradient: linear-gradient(135deg, #e50c78, #ef450a);
   --radius: 1.25rem;
+  --header-h: 64px;
+  
+  /* Gradient and derived tokens */
+  --wf-gradient: linear-gradient(135deg, #e50c78, #ef450a);
 
   /* Working design tokens - dark theme */
   --primary: #e50c78;
@@ -93,6 +96,7 @@ small { font-size: 12px; color: var(--muted); }
 /* Cards */
 .card { transition: transform 0.2s ease, opacity 0.2s ease; animation: fadeSlideIn 0.2s ease; }
 .card-moving { transform: translateX(8px); opacity: 0.8; }
+.shadow-card { box-shadow: 0 2px 8px rgba(0,0,0,0.1), 0 4px 16px rgba(0,0,0,0.08); }
 @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Simple menu */
@@ -125,7 +129,7 @@ small { font-size: 12px; color: var(--muted); }
 
 /* Focus styles for accessibility */
 :focus-visible {
-  outline: 2px solid var(--primary);
+  outline: 2px solid var(--wf-magenta);
   outline-offset: 2px;
 }
 
