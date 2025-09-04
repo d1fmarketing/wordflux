@@ -5,23 +5,54 @@ const TABLE = process.env.DYNAMO_TABLE || "Wordflux";
 const PK = process.env.BOARD_PK || "board#default";
 const REGION = process.env.AWS_REGION || "us-west-2";
 
-const client = new DynamoDBClient({ region: REGION });
-const ddb = DynamoDBDocumentClient.from(client);
+// Progressive enhancement: if AWS config is missing, fall back to in-memory store
+const useInMemory = !process.env.AWS_REGION || !process.env.DYNAMO_TABLE;
+let memoryStore = null;
+
+let ddb;
+if (!useInMemory) {
+  const client = new DynamoDBClient({ region: REGION });
+  ddb = DynamoDBDocumentClient.from(client);
+}
 
 export async function getBoard(autoSeed=false){
-  const r = await ddb.send(new GetCommand({ TableName: TABLE, Key: { pk: PK } }))
-  if(!r.Item){
-    if(autoSeed){
-      await seedIfMissing()
-      return getBoard(false)
+  if (useInMemory) {
+    if (!memoryStore && autoSeed) {
+      await seedIfMissing();
     }
-    throw new Error("Board not found. Run /api/board/seed or set autoSeed.")
+    if (!memoryStore) throw new Error("Board not found. Run /api/board/seed or configure AWS.");
+    return memoryStore;
   }
-  return r.Item.data
+  try{
+    const r = await ddb.send(new GetCommand({ TableName: TABLE, Key: { pk: PK } }))
+    if(!r.Item){
+      if(autoSeed){
+        await seedIfMissing()
+        return getBoard(false)
+      }
+      throw new Error("Board not found. Run /api/board/seed or set autoSeed.")
+    }
+    return r.Item.data
+  } catch(err){
+    // Fallback to memory if AWS is unavailable
+    if (autoSeed && !memoryStore) {
+      await seedIfMissing()
+    }
+    if (!memoryStore) throw err
+    return memoryStore
+  }
 }
 
 export async function putBoard(board){
-  await ddb.send(new PutCommand({ TableName: TABLE, Item: { pk: PK, data: board, updatedAt: Date.now() } }))
+  if (useInMemory) {
+    memoryStore = JSON.parse(JSON.stringify(board));
+    return;
+  }
+  try{
+    await ddb.send(new PutCommand({ TableName: TABLE, Item: { pk: PK, data: board, updatedAt: Date.now() } }))
+  } catch {
+    memoryStore = JSON.parse(JSON.stringify(board));
+  }
 }
 
 export async function seedIfMissing(){
@@ -41,7 +72,7 @@ export async function seedIfMissing(){
         id: "Doing",
         name: "Doing",
         cards: [
-          { id: "doing-1", title: "Auto‑move on Approve", desc: "When approved → Deploy + notify.", owner: "rj", priority: "h" },
+          { id: "doing-1", title: "Auto-move on Approve", desc: "When approved → Deploy + notify.", owner: "rj", priority: "h" },
           { id: "doing-2", title: "Screenshot parser", desc: "Let agent read screenshots.", owner: "lucas", priority: "m" }
         ]
       },
@@ -55,4 +86,12 @@ export async function seedIfMissing(){
     ]
   }
   await putBoard(sample)
+}
+
+export function envStatus(){
+  return {
+    hasAwsRegion: !!process.env.AWS_REGION,
+    hasDynamoTable: !!process.env.DYNAMO_TABLE,
+    inMemory: useInMemory,
+  };
 }

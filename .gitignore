@@ -49,3 +49,27 @@ ecosystem.config.js
 # SSL certificates
 cert.pem
 key.pem
+# Local Netlify folder
+.netlify
+
+# Test artifacts
+*.png
+test-results/
+playwright-artifacts/
+audit-*.js
+test-*.js
+verify-*.js
+quick-check.js
+mcp-test.js
+fix-js.js
+
+# Temporary files
+*.pid
+out.log
+deploy.zip
+wordflux-deploy.zip
+ngrok
+ngrok-*.tgz
+
+# Backup files
+*.backup

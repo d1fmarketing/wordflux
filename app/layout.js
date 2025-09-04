@@ -1,5 +1,10 @@
 import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
+import { getBoard } from './lib/board'
+
+// Force dynamic rendering to avoid static pre-render of home
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 const inter = Inter({ 
   subsets: ['latin'], 
@@ -19,10 +24,22 @@ export const metadata = {
   description: "Clarity in motion - AI-powered board organization with GPT-5" 
 }
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  let initialBoard = null
+  try {
+    initialBoard = await getBoard(true)
+  } catch {}
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
-      <body className="bg-wf-navy text-wf-soft antialiased">
+      <body className="">
+        <a href="#main" className="sr-only focus:not-sr-only">Skip to content</a>
+        {initialBoard ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `window.__WF_INITIAL_BOARD = ${JSON.stringify(initialBoard)};`,
+            }}
+          />
+        ) : null}
         {children}
       </body>
     </html>

@@ -1,0 +1,8 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "Building and running e2e tests..."
+cd wordflux 2>/dev/null || true
+npm run build || exit 1
+npm run test:e2e || exit 1
+

@@ -9,10 +9,10 @@ module.exports = {
     extend: {
       colors: {
         wf: {
-          magenta: '#e50c78',
-          orange: '#ef450a',
-          navy: '#000023',
-          soft: '#fff9f9',
+          magenta: 'var(--wf-magenta)',
+          orange: 'var(--wf-orange)',
+          navy: 'var(--wf-navy)',
+          soft: 'var(--wf-soft)',
           success: '#10b981',
           warning: '#f59e0b',
           error: '#ef4444',

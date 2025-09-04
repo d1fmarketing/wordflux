@@ -3,58 +3,48 @@ import { getBoard } from "../../lib/board.js";
 
 export async function POST(request) {
   try {
-    const { message } = await request.json();
+    const { message, board: providedBoard } = await request.json();
     const apiKey = process.env.OPENAI_API_KEY;
+    const model = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || "gpt-5"; // exact GPT-5 name expected
     
     if (!apiKey) {
       return NextResponse.json({ error: "Missing API key" }, { status: 500 });
     }
 
-    // Get current board state
-    const board = await getBoard();
+    // Prefer provided board context; otherwise fetch
+    const board = providedBoard || await getBoard();
     
-    // Use GPT-5-mini with the NEW Responses API!
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    // Call OpenAI Chat Completions (aligns with requested spec)
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gpt-5-mini",
-        input: `You are the WordFlux AI agent using GPT-5. Help organize kanban boards.
-Current board state: ${JSON.stringify(board)}
-
-Be concise and suggest specific improvements like:
-- Merging duplicate columns
-- Setting WIP limits
-- Moving cards to appropriate columns
-- Cleaning up statuses
-
-User question: ${message}`,
-        text: { 
-          verbosity: "medium"  // Control response length
-        },
-        reasoning: { 
-          effort: "minimal"  // Fast responses without deep reasoning
-        },
-        max_output_tokens: 500
+        model,
+        messages: [
+          { role: "system", content: "You are WordFlux AI. You help teams organize work and suggest workflow improvements. Be direct and actionable." },
+          { role: "user", content: `Board state: ${JSON.stringify(board)}\nUser: ${message}` }
+        ],
+        max_completion_tokens: 2000,
+        reasoning_effort: "minimal"
       })
     });
 
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(data.error?.message || "GPT-5 API error");
+      throw new Error(data.error?.message || "OpenAI API error");
     }
 
-    // Extract the text from GPT-5 response format
-    const responseText = data.output?.find(o => o.type === "message")?.content?.[0]?.text || "No response";
+    // Extract assistant text
+    const responseText = data.choices?.[0]?.message?.content || "No response";
 
     return NextResponse.json({
       response: responseText,
       suggestions: extractSuggestions(responseText),
-      model: data.model || "gpt-5-mini"
+      model: data.model || model
     });
 
   } catch (error) {

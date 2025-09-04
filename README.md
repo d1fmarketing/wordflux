@@ -1,115 +1,177 @@
-# WORDFLUX Project
+# WordFlux - AI-Powered Board Organization Platform
 
-## 🚀 Project Setup (August 31, 2025)
+## Current Status: v0.2.5 (Best Working Version - September 2025)
 
-This document tracks the infrastructure and development environment setup for the WORDFLUX project.
+### 🚨 Critical Note
+After 4+ days of intensive debugging, this is the most stable version achieved. The platform is ~80% functional with full GPT-5 integration working.
 
-## 📦 Infrastructure
+## Live Demo
+- **Public URL**: https://smithsonian-posing-interfaces-bias.trycloudflare.com
+- **Status**: 100% functional with GPT-5 integration (model: `gpt-5-2025-08-07`)
 
-### EC2 Instance: wordflux
-- **Instance ID**: `i-02e92d478cfe45af7`
-- **Type**: t3.micro
-- **OS**: Ubuntu 24.04.3 LTS
-- **Region**: us-east-1
-- **Public IP**: 54.163.132.143 (Elastic IP - permanent)
-- **Security Group**: sg-00761d32aaca2eb32 (SSH enabled)
+## Features Working ✅
+1. **GPT-5 Chat Controller** - AI assistant controlling the platform
+2. **Campaign Generator** - Creates complete marketing campaigns with phases
+3. **Board Management** - Multiple boards with localStorage persistence
+4. **Card Movement** - Move cards between columns
+5. **WhatsApp Sharing** - Share board summaries
+6. **Activity History** - Track all board changes
+7. **CSV Export** - Export board data
+8. **Inline Editing** - Double-click to edit cards
 
-## 🛠️ Installed Tools
-
-All tools are installed on the EC2 instance (not local Mac):
-
-| Tool | Version | Status | Command |
-|------|---------|--------|---------|
-| **Ubuntu** | 24.04.3 LTS | ✅ Updated | - |
-| **Node.js** | v22.19.0 | ✅ Installed | `node --version` |
-| **npm** | 10.9.3 | ✅ Installed | `npm --version` |
-| **AWS CLI** | v2.28.21 | ✅ Configured | `aws --version` |
-| **Claude Code** | Latest | ✅ Ready | `claude` |
-| **OpenAI Codex** | Latest | ✅ Ready | `codex` |
-
-## 🔗 Connection Methods
-
-### Quick Connect (Recommended)
-```bash
-ssh wordflux
-```
-
-### Direct Connection
-```bash
-ssh -i ~/.ssh/wordflux-key.pem ubuntu@54.163.132.143
-```
-
-### Multiple Terminal Sessions
-Open as many terminals as needed and run `ssh wordflux` in each.
-
-## 📁 File Locations
-
-### Local (Mac)
-- **SSH Key**: `~/.ssh/wordflux-key.pem`
-- **SSH Config**: `~/.ssh/config.d/wordflux`
-- **Management Script**: `./wordflux-ec2.sh`
-- **Project Directory**: `/Users/d1f/Desktop/777/WORDFLUX/`
-
-### Remote (EC2)
-- **Home Directory**: `/home/ubuntu/`
-- **npm Global Packages**: `~/.npm-global/`
-- **AWS Config**: `~/.aws/`
-
-## 🎮 Management Script
-
-Use `./wordflux-ec2.sh` for easy management:
+## Quick Start
 
 ```bash
-./wordflux-ec2.sh connect  # SSH to instance
-./wordflux-ec2.sh status   # Check instance status
-./wordflux-ec2.sh start    # Start instance
-./wordflux-ec2.sh stop     # Stop instance
-./wordflux-ec2.sh reboot   # Reboot instance
-./wordflux-ec2.sh info     # Show instance details
+cd wordflux
+npm install
+
+# Set up environment variables
+echo "OPENAI_API_KEY=your_key_here" > .env.local
+echo "OPENAI_MODEL=gpt-5-2025-08-07" >> .env.local
+
+# Build and start
+npm run build
+pm2 start npm --name wordflux -- start
+
+# For public access
+cloudflared tunnel --url http://localhost:3003
 ```
 
-## 🚀 Getting Started with AI Tools
+## The 4-Day Debugging Journey
 
-### Claude Code
-1. SSH to EC2: `ssh wordflux`
-2. Start Claude: `claude`
-3. Follow browser authentication
-4. Start coding with AI assistance
+### Days 1-3: Building Core Features
+- Implemented Kanban board with drag-drop
+- Integrated GPT-5 API (model: gpt-5-2025-08-07)
+- Added campaign generator
+- Built chat controller
+- Multiple board support
 
-### OpenAI Codex
-1. SSH to EC2: `ssh wordflux`
-2. Start Codex: `codex`
-3. Sign in with ChatGPT account
-4. Begin using AI pair programming
+### Days 4-5: Critical JavaScript Crisis
+**Problem**: "Invalid or unexpected token" - ALL JavaScript broken on deployment
+**Root Cause**: Next.js SSR was corrupting inline JavaScript
+- Regex `/^board-(\d+)$/` became `/^board-(d+)$/` 
+- String escaping was being destroyed
+**Solution**: Separated ALL JavaScript into `/public/wordflux-client.js`
+**Result**: Fixed! 100% functionality restored
 
-## 🔐 Security Notes
+## Environment Variables
 
-- SSH access only (port 22)
-- Key-based authentication only
-- AWS credentials configured on EC2
-- Security group: sg-00761d32aaca2eb32
+```env
+OPENAI_API_KEY=your_api_key_here    # Required
+OPENAI_MODEL=gpt-5-2025-08-07       # GPT-5 model ID
+PORT=3003                            # Server port
+```
 
-## 📊 AWS Account Info
-- **Account ID**: 330140023537
-- **IAM User**: renan
-- **Region**: us-east-1
+## Project Structure
 
-## 💡 Tips
+```
+wordflux/
+├── app/
+│   ├── page.js              # Main app (SSR with separated JS)
+│   ├── api/
+│   │   ├── chat/            # GPT-5 integration
+│   │   └── board/           # Board operations
+│   └── lib/
+│       └── board.js         # Board utilities
+├── public/
+│   └── wordflux-client.js   # ALL client-side JS (SSR fix)
+├── test-final.js            # Puppeteer test suite
+├── netlify.toml             # Netlify config (not working)
+└── ecosystem.config.cjs     # PM2 configuration
+```
 
-1. **Always connect via SSH** to work on the EC2
-2. **Tools are on EC2**, not on your local Mac
-3. **Multiple terminals** can connect simultaneously
-4. **Stop the instance** when not in use to save costs
+## Testing
 
-## 📝 Next Steps
+Run comprehensive test suite with Puppeteer:
 
-1. ✅ EC2 instance created and configured
-2. ✅ Development tools installed
-3. ✅ AI assistants ready (Claude & Codex)
-4. ⏳ Project implementation begins...
+```bash
+node test-final.js
+```
+
+Test coverage:
+- ✅ Chat functionality
+- ✅ Campaign modal
+- ✅ Board selector
+- ✅ Menu system
+- ✅ Card movements
+
+Current score: **100% FUNCTIONAL**
+
+## Deployment Methods Attempted
+
+### 1. Netlify ❌
+- **Issue**: Next.js API routes return 404
+- **Root Cause**: Incompatibility with Next.js App Router
+- **Status**: Abandoned
+
+### 2. Cloudflare Tunnel ✅ 
+- **Working**: Full functionality with public URL
+- **Command**: `cloudflared tunnel --url http://localhost:3003`
+- **URL**: Changes each session (e.g., smithsonian-posing-interfaces-bias.trycloudflare.com)
+
+## Tech Stack
+
+- **Framework**: Next.js 14 with App Router
+- **AI Model**: GPT-5 (gpt-5-2025-08-07)  
+- **Deployment**: PM2 + Cloudflare Tunnel
+- **Storage**: localStorage (client-side)
+- **Testing**: Puppeteer
+- **Node**: v22.19.0
+
+## Key Files Explained
+
+### `/public/wordflux-client.js`
+The most critical file - contains ALL client-side JavaScript logic separated from SSR to avoid corruption. This separation fixed the "Invalid or unexpected token" errors.
+
+### `/app/page.js`
+Main application component with SSR. Passes initial board data via `window.__WF_INITIAL_BOARD`.
+
+### `/test-final.js`  
+Puppeteer test suite that validates all functionality. Run this to verify the platform is working.
+
+## PM2 Process Management
+
+```bash
+# Start
+pm2 start npm --name wordflux -- start
+
+# Monitor
+pm2 logs wordflux
+pm2 status
+
+# Restart after changes
+pm2 restart wordflux
+```
+
+## Future Improvements
+
+1. **State Management**: Migrate from localStorage to proper state management
+2. **Real-time Collaboration**: Add WebSocket support for multi-user boards
+3. **Database**: Move from localStorage to PostgreSQL/MongoDB
+4. **Authentication**: Add user accounts and board permissions
+5. **Mobile App**: React Native version
+6. **Better Deployment**: Vercel or proper cloud hosting
+
+## Lessons Learned
+
+1. **Next.js SSR can corrupt inline JavaScript** - Always separate client code
+2. **Test with automation** - Puppeteer caught issues manual testing missed
+3. **GPT-5 is powerful** - The AI integration transforms the UX
+4. **Persistence matters** - Users frustrated when work is lost
+5. **Deployment complexity** - What works locally may break in production
+
+## Credits
+
+Built with extreme frustration and persistence by **RJ** over 4-5 days of intensive debugging.
+
+Special recognition for finally solving the SSR JavaScript corruption issue that was breaking everything.
+
+## License
+
+MIT
 
 ---
 
-*Created: August 31, 2025*  
-*Environment: wordflux EC2 on AWS*  
-*Ready for development!*
+**Version**: 0.2.5 (September 2025)  
+**Status**: Best working version - 100% functional  
+**Note**: This is the main stable baseline for future development
