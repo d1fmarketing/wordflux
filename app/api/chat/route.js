@@ -3,9 +3,23 @@ import { getBoard } from "../../lib/board.js";
 
 export async function POST(request) {
   try {
-    const { message, board: providedBoard } = await request.json();
+    const body = await request.json();
+    
+    // Support both message format and messages array
+    let message;
+    if (body.message) {
+      message = body.message;
+    } else if (body.messages && Array.isArray(body.messages)) {
+      // Extract user message from messages array
+      const userMessage = body.messages.find(m => m.role === 'user');
+      message = userMessage ? userMessage.content : JSON.stringify(body.messages);
+    } else {
+      return NextResponse.json({ error: "Message required" }, { status: 400 });
+    }
+    
+    const providedBoard = body.board;
     const apiKey = process.env.OPENAI_API_KEY;
-    const model = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || "gpt-5"; // exact GPT-5 name expected
+    const model = process.env.OPENAI_MODEL || process.env.OPENAI_CHAT_MODEL || "gpt-5"; // GPT-5 is real!
     
     if (!apiKey) {
       return NextResponse.json({ error: "Missing API key" }, { status: 500 });
@@ -14,7 +28,10 @@ export async function POST(request) {
     // Prefer provided board context; otherwise fetch
     const board = providedBoard || await getBoard();
     
-    // Call OpenAI Chat Completions (aligns with requested spec)
+    // Call OpenAI Chat Completions with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -29,8 +46,11 @@ export async function POST(request) {
         ],
         max_completion_tokens: 2000,
         reasoning_effort: "minimal"
-      })
+      }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeout);
 
     const data = await response.json();
     

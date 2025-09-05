@@ -1,21 +1,141 @@
-import { getBoard } from './lib/board'
+'use client';
+import { useState, useRef, useCallback } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
+import Board from './components/Board';
+import FilterBar from './components/FilterBar';
+import ChatPanel from './components/ChatPanel';
+import UpgradePrompt, { ProBadge, useProStatus } from './components/UpgradePrompt';
+import ErrorBoundary from './components/ErrorBoundary';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { 
+  safePrompt, 
+  validateColumnId, 
+  validateCardTitle, 
+  checkRateLimit 
+} from './utils/validation';
 
-export const dynamic = 'force-dynamic'
+export default function Page() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [filters, setFilters] = useState({ q:'', priority:[], owner:[] });
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [boardMutate, setBoardMutate] = useState(null);
+  const searchInputRef = useRef(null);
+  const isPro = useProStatus();
+  
+  // Configurable toast duration for testing
+  const toastDuration = Number(process.env.NEXT_PUBLIC_TOAST_DURATION_MS || 3000);
+  
+  // Keyboard shortcuts with validation and error handling
+  const handleCreateCard = useCallback(async () => {
+    try {
+      // Rate limit check
+      if (!checkRateLimit('create_card', 5, 60000)) {
+        toast.error('Too many requests. Please wait.');
+        return;
+      }
+      
+      const columnInput = safePrompt('Which column? (Backlog/Doing/Done)', 'Backlog');
+      if (!columnInput) return;
+      
+      const columnId = validateColumnId(columnInput);
+      if (!columnId) {
+        toast.error('Invalid column. Please use: Backlog, Doing, or Done');
+        return;
+      }
+      
+      const titleInput = safePrompt('Card title:');
+      if (!titleInput) return;
+      
+      const title = validateCardTitle(titleInput);
+      if (!title) {
+        toast.error('Invalid title. Please use 1-100 characters.');
+        return;
+      }
+      
+      const response = await fetch('/api/board/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          op: 'create_card',
+          args: {
+            columnId,
+            title,
+            description: '',
+            priority: 'm'
+          }
+        })
+      });
+      
+      if (response.ok) {
+        toast.success('Card created', { duration: toastDuration });
+        if (boardMutate) boardMutate();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create card');
+      }
+    } catch (error) {
+      console.error('Create card error:', error);
+      toast.error('Failed to create card');
+    }
+  }, [boardMutate, toastDuration]);
+  
+  useKeyboardShortcuts({
+    onCreateCard: handleCreateCard,
+    onSearch: () => {
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
+    },
+    onToggleChat: () => {
+      setSidebarOpen(!sidebarOpen);
+    },
+    onGenerateBacklog: () => {
+      document.getElementById('generate-backlog')?.click();
+    },
+    onRefresh: () => {
+      if (boardMutate) boardMutate();
+    }
+  });
 
-export default async function Page() {
-  // Server-render board to avoid any loader/skeleton in HTML  
-  const board = await getBoard(true)
+  const handleChatMessage = useCallback((msg) => {
+    try {
+      if(msg === '__refresh_board__') {
+        // Board will auto-refresh via SWR
+        if (boardMutate) boardMutate();
+      } else if (msg?.type === 'board_update' && msg.board) {
+        // Optimistically update board with new state from Chat
+        if (boardMutate) {
+          boardMutate({ board: msg.board }, false);
+        }
+      }
+    } catch (error) {
+      console.error('Chat message handling error:', error);
+      toast.error('Failed to process chat update');
+    }
+  }, [boardMutate]);
 
   return (
-    <div 
-      className="flex flex-col lg:flex-row min-h-screen bg-[var(--wf-navy)] text-[var(--wf-soft)]"
-      id="main"
-      suppressHydrationWarning
+    <ErrorBoundary 
+      fallbackTitle="Application Error"
+      fallbackMessage="The application encountered an error. Please refresh the page or try again."
+      onReset={() => window.location.reload()}
     >
+      <div className="flex flex-col lg:flex-row min-h-screen bg-[var(--wf-navy)] text-[var(--wf-soft)]" id="main">
+      <Toaster 
+        position="bottom-center"
+        toastOptions={{
+          duration: toastDuration,
+          style: {
+            background: 'var(--surface-alt)',
+            color: 'var(--wf-soft)',
+            border: '1px solid var(--border)',
+          },
+        }}
+      />
       {/* Mobile menu toggle FAB */}
       <button 
         id="chat-toggle"
         className="lg:hidden fixed bottom-4 left-4 z-50 p-3 bg-gradient-to-r from-[var(--wf-magenta)] to-[var(--wf-orange)] rounded-full shadow-lg text-white"
+        onClick={() => setSidebarOpen(true)}
         aria-label="Toggle chat"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -26,64 +146,33 @@ export default async function Page() {
       {/* Mobile backdrop */}
       <div 
         id="sidebar-backdrop"
-        className="hidden lg:hidden fixed inset-0 bg-black/50 z-40"
+        className={`${sidebarOpen ? 'block' : 'hidden'} lg:hidden fixed inset-0 bg-black/50 z-40`}
+        onClick={() => setSidebarOpen(false)}
       />
       
-      {/* Left: GPT-5 Chat Controller */}
+      {/* Desktop Chat Sidebar - Hidden on mobile, visible on lg */}
       <aside 
         id="chat-sidebar"
-        className="fixed lg:relative top-0 bottom-0 left-0 w-[280px] lg:w-[280px] flex-shrink-0 bg-[var(--wf-navy)] border-r border-[var(--border)] flex flex-col z-50 lg:z-auto transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out"
-        suppressHydrationWarning
+        className="hidden lg:flex lg:static lg:w-[280px] flex-shrink-0 bg-[var(--wf-navy)] border-r border-[var(--border)] flex-col"
       >
-        {/* Chat header */}
-        <div className="p-5 bg-gradient-to-r from-[var(--wf-magenta)] to-[var(--wf-orange)] text-white">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="m-0 font-[var(--font-display),Poppins] text-lg font-semibold">GPT-5 Controller</h2>
-              <p className="mt-1 text-xs opacity-95">AI controlando sua plataforma</p>
-            </div>
-            <button 
-              id="sidebar-close"
-              className="lg:hidden p-1 hover:bg-white/10 rounded"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        
-        {/* Chat messages */}
-        <div id="chat-log" className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
-          <div className="p-3 rounded-lg bg-[var(--surface-alt)]">
-            Eu controlo tudo. Pergunte: &quot;Gere uma campanha Black Friday&quot;
-          </div>
-        </div>
-        
-        {/* Chat input - sticky at bottom */}
-        <div className="sticky bottom-0 border-t border-[var(--border)] bg-[var(--wf-navy)]/90 backdrop-blur p-3">
-          <div className="flex gap-2">
-            <textarea 
-              id="chat-input" 
-              placeholder="Comandos para GPT-5..."
-              className="flex-1 p-3 rounded-lg border border-[var(--border)] bg-[#0f0f1d] text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-[var(--wf-magenta)] resize-none"
-              rows="1"
-            />
-            <div className="flex flex-col gap-1">
-              <button 
-                id="chat-send"
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-[var(--wf-magenta)] to-[var(--wf-orange)] text-white font-semibold hover:shadow-lg transition-shadow text-sm"
-              >
-                Send
-              </button>
-              <button 
-                id="chat-clear"
-                className="px-4 py-1 rounded-lg border border-[var(--border)] text-[var(--wf-soft)]/60 hover:text-[var(--wf-soft)] text-xs"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
+        <ChatPanel onUserMessage={handleChatMessage} />
+      </aside>
+      
+      {/* Mobile Chat Drawer - Only visible on mobile, toggled with transform */}
+      <aside 
+        id="chat-sidebar-mobile"
+        className={`lg:hidden fixed top-0 bottom-0 left-0 w-[280px] bg-[var(--wf-navy)] border-r border-[var(--border)] flex flex-col z-50 transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className="relative">
+          <button 
+            className="absolute top-5 right-5 p-1 hover:bg-white/10 rounded z-10" 
+            onClick={() => setSidebarOpen(false)}
+          >
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <ChatPanel onUserMessage={handleChatMessage} />
         </div>
       </aside>
       
@@ -93,12 +182,19 @@ export default async function Page() {
         <header className="h-[var(--header-h)] px-4 lg:px-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--wf-navy)] flex-shrink-0">
           <div className="flex items-center gap-3">
             <h1 className="text-xl lg:text-2xl font-bold">WordFlux</h1>
-            {/* Voice button placeholder */}
+            {/* Voice button - gated by Pro */}
             <button 
               id="voice-connect"
-              className="hidden lg:inline-flex px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--wf-soft)]/60 hover:text-[var(--wf-soft)] hover:border-[var(--wf-magenta)] transition-colors text-sm"
+              className="hidden lg:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--border)] text-[var(--wf-soft)]/60 hover:text-[var(--wf-soft)] hover:border-[var(--wf-magenta)] transition-colors text-sm"
+              onClick={() => {
+                if (!isPro) {
+                  setShowUpgrade(true);
+                } else {
+                  window.location.href = '/voice';
+                }
+              }}
             >
-              🎙 Connect Voice
+              🎙 Connect Voice {!isPro && <ProBadge />}
             </button>
           </div>
           
@@ -109,6 +205,61 @@ export default async function Page() {
             >
               <option>Default Board</option>
             </select>
+            
+            <button 
+              id="generate-backlog" 
+              className="btn btn-secondary hidden sm:inline-flex"
+              onClick={async () => {
+                const promptInput = safePrompt('What kind of backlog items do you need?', 'Generate user stories for an e-commerce checkout flow');
+                if (!promptInput) return;
+                
+                // Rate limit AI requests
+                if (!checkRateLimit('ai_backlog', 3, 60000)) {
+                  toast.error('Too many AI requests. Please wait.', { duration: toastDuration });
+                  return;
+                }
+                
+                const btn = document.getElementById('generate-backlog');
+                
+                try {
+                  if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Generating...';
+                  }
+                  
+                  const response = await fetch('/api/ai/backlog', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: promptInput }),
+                    signal: AbortSignal.timeout(30000) // 30 second timeout
+                  });
+                  
+                  const result = await response.json();
+                  
+                  if (response.ok && result.created > 0) {
+                    toast.success(`Generated ${result.created} cards!`, { duration: toastDuration });
+                    // Use mutate instead of reload
+                    if (boardMutate) boardMutate();
+                  } else {
+                    toast.error(result.error || `Generated ${result.created} cards. ${result.errors?.length || 0} errors.`, { duration: toastDuration });
+                  }
+                } catch (error) {
+                  console.error('Backlog generation error:', error);
+                  if (error.name === 'AbortError') {
+                    toast.error('Request timed out. Please try again.', { duration: toastDuration });
+                  } else {
+                    toast.error('Failed to generate backlog', { duration: toastDuration });
+                  }
+                } finally {
+                  if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Generate Backlog';
+                  }
+                }
+              }}
+            >
+              Generate Backlog
+            </button>
             
             <button id="open-campaign" className="btn btn-primary hidden sm:inline-flex">
               Generate Campaign
@@ -131,100 +282,11 @@ export default async function Page() {
           </div>
         </header>
         
-        {/* Board content */}
-        <section className="flex-1 overflow-y-auto p-4 lg:p-6 bg-[var(--wf-navy)]">
-          <div id="empty-state" className="hidden items-center justify-center min-h-[280px] flex-col gap-4">
-            <h2 className="m-0 text-center">Vamos criar sua primeira campanha</h2>
-            <small className="text-center">Use IA para gerar uma campanha completa em segundos</small>
-            <button id="empty-generate" className="btn btn-primary">Gerar Campanha</button>
-          </div>
-          
-          {/* Responsive grid for columns */}
-          <div id="kanban" className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {board.columns.map(col => {
-              const limit = board.wipLimits?.[col.id];
-              const isOverLimit = limit && col.cards.length > limit;
-              
-              return (
-                <div 
-                  key={col.id}
-                  data-column-id={col.id}
-                  className="w-full bg-[var(--wf-soft)]/[0.035] border border-[var(--border)] rounded-xl p-4 min-h-[50vh]"
-                >
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className={`text-lg font-semibold ${col.id === 'Done' ? 'text-[#4ade80]' : 'text-[var(--wf-soft)]'}`}>
-                      {col.name}
-                    </h3>
-                    <button
-                      className={`px-2 py-1 text-xs rounded-full cursor-pointer transition-colors ${
-                        isOverLimit 
-                          ? 'bg-[var(--wf-magenta)]/20 text-[var(--wf-magenta)] border border-[var(--wf-magenta)]' 
-                          : 'bg-[var(--wf-soft)]/10 text-[var(--wf-soft)]/75 hover:bg-[var(--wf-soft)]/20'
-                      }`}
-                      data-wip-badge={col.id}
-                      title={limit ? `WIP Limit: ${limit}` : 'Set WIP limit'}
-                    >
-                      {limit ? `${col.cards.length}/${limit}` : col.cards.length}
-                    </button>
-                  </div>
-                  
-                  {/* Droppable area for cards */}
-                  <div className="space-y-3" data-droppable={col.id}>
-                    {col.cards.map(card => (
-                      <div 
-                        key={card.id}
-                        data-card-id={card.id}
-                        className="bg-[var(--wf-soft)]/10 border border-[var(--wf-soft)]/20 rounded-xl p-4 shadow-card hover:bg-[var(--wf-soft)]/[0.15] transition-colors cursor-move"
-                      >
-                        <div className="flex justify-between gap-2 items-start mb-2">
-                          <h4 className="text-sm font-medium text-[var(--wf-soft)]">
-                            {card.title}
-                          </h4>
-                          <span className="text-xs text-[var(--wf-soft)]/60">
-                            {card.owner || ''}
-                          </span>
-                        </div>
-                        
-                        {card.desc && (
-                          <p className="text-xs text-[var(--wf-soft)]/80 mb-3">
-                            {card.desc}
-                          </p>
-                        )}
-                        
-                        {/* Priority indicator */}
-                        {card.priority && (
-                          <div className="flex gap-1 mb-3">
-                            <span className={`
-                              inline-block px-2 py-0.5 text-xs rounded-full
-                              ${card.priority === 'h' ? 'bg-[var(--wf-magenta)]/20 text-[var(--wf-magenta)]' : ''}
-                              ${card.priority === 'm' ? 'bg-[var(--wf-orange)]/20 text-[var(--wf-orange)]' : ''}
-                              ${card.priority === 'l' ? 'bg-[var(--wf-soft)]/10 text-[var(--wf-soft)]/60' : ''}
-                            `}>
-                              {card.priority === 'h' ? 'High' : card.priority === 'm' ? 'Medium' : 'Low'}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {col.id !== 'Done' ? (
-                          <button 
-                            data-move="true"
-                            data-cardid={card.id}
-                            data-from={col.id}
-                            data-to={col.id === 'Backlog' ? 'Doing' : 'Done'}
-                            className="text-xs px-3 py-1.5 rounded-md bg-[var(--wf-magenta)] text-white hover:bg-[var(--wf-orange)] transition-colors"
-                          >
-                            Move →
-                          </button>
-                        ) : (
-                          <span className="text-xs text-[#4ade80]">✓ Complete</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+        {/* Board content with filters */}
+        <section className="wf-mainpanel">
+          {/* Filters */}
+          <FilterBar board={undefined} value={filters} onChange={setFilters} searchRef={searchInputRef} />
+          <Board filters={filters} onBoardUpdate={setBoardMutate} />
         </section>
       </main>
 
@@ -351,6 +413,15 @@ export default async function Page() {
 
       {/* Load client-side JavaScript */}
       <script src="/wordflux-client.js" defer></script>
+      
+      {/* Upgrade Prompt Modal */}
+      {showUpgrade && (
+        <UpgradePrompt 
+          feature="Voice & Image" 
+          onClose={() => setShowUpgrade(false)} 
+        />
+      )}
     </div>
-  )
+    </ErrorBoundary>
+  );
 }

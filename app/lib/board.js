@@ -32,32 +32,62 @@ export async function getBoard(autoSeed=false){
       }
       throw new Error("Board not found. Run /api/board/seed or set autoSeed.")
     }
-    return r.Item.data
+    return r.Item.data;
   } catch(err){
-    // Fallback to memory if AWS is unavailable
-    if (autoSeed && !memoryStore) {
-      await seedIfMissing()
-    }
-    if (!memoryStore) throw err
-    return memoryStore
+    // Do not fall back to memory when AWS is configured to avoid split-brain
+    throw err
   }
 }
 
-export async function putBoard(board){
+export async function putBoard(board, expectedVersion = null){
   if (useInMemory) {
+    // For in-memory, do simple version check
+    if (expectedVersion !== null && memoryStore && memoryStore.version !== expectedVersion) {
+      const error = new Error('Version conflict');
+      error.name = 'ConditionalCheckFailedException';
+      error.currentVersion = memoryStore.version;
+      throw error;
+    }
     memoryStore = JSON.parse(JSON.stringify(board));
     return;
   }
-  try{
-    await ddb.send(new PutCommand({ TableName: TABLE, Item: { pk: PK, data: board, updatedAt: Date.now() } }))
-  } catch {
-    memoryStore = JSON.parse(JSON.stringify(board));
+  
+  try {
+    const putParams = { 
+      TableName: TABLE, 
+      Item: { pk: PK, data: board, updatedAt: Date.now() }
+    };
+    
+    // Add conditional write if version specified
+    if (expectedVersion !== null) {
+      putParams.ConditionExpression = 'attribute_not_exists(pk) OR #data.#version = :v';
+      putParams.ExpressionAttributeNames = {
+        '#data': 'data',
+        '#version': 'version'
+      };
+      putParams.ExpressionAttributeValues = {
+        ':v': expectedVersion
+      };
+    }
+    
+    await ddb.send(new PutCommand(putParams));
+  } catch (err) {
+    if (err.name === 'ConditionalCheckFailedException') {
+      // Re-throw with our error format
+      const error = new Error('Version conflict');
+      error.name = 'ConditionalCheckFailedException';
+      error.code = 'version_conflict';
+      throw error;
+    }
+    console.error('Failed to save to DynamoDB:', err);
+    throw err;
   }
 }
 
 export async function seedIfMissing(){
   const sample = {
     id: "default",
+    version: 1,
     wipLimits: { Doing: 4 },
     columns: [
       {

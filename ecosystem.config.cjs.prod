@@ -2,7 +2,7 @@ module.exports = {
   apps: [{
     name: 'wordflux',
     script: 'npm',
-    args: 'run start -- -H 0.0.0.0 -p 80',
+    args: 'start',
     cwd: '/home/ubuntu/wordflux',
     env: {
       NODE_ENV: 'production'
@@ -10,9 +10,13 @@ module.exports = {
     error_file: '/home/ubuntu/logs/err.log',
     out_file: '/home/ubuntu/logs/out.log',
     log_file: '/home/ubuntu/logs/combined.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss',
     time: true,
     autorestart: true,
-    max_restarts: 10,
-    min_uptime: '10s'
+    max_restarts: 5,
+    min_uptime: '10s',
+    watch: false,
+    instances: 1,
+    exec_mode: 'fork'
   }]
 }

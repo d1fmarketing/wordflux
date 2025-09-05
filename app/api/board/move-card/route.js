@@ -1,25 +1,32 @@
-import { NextResponse } from 'next/server'
-import { getBoard, putBoard } from '../../../lib/board.js'
+import { NextResponse } from 'next/server';
 
-export async function POST(req){
-  try{
-    const { fromColumnId, toColumnId, cardId, position } = await req.json()
-    let board = await getBoard(true)
-    const from = board.columns.find(c=>c.id===fromColumnId)
-    const to   = board.columns.find(c=>c.id===toColumnId)
-    if(!from || !to) throw new Error('Invalid column(s)')
-    const idx = from.cards.findIndex(c=>c.id===cardId)
-    if(idx<0) throw new Error('Card not found')
-    const [card] = from.cards.splice(idx,1)
-    if(position != null && position >=0 && position <= to.cards.length){
-      to.cards.splice(position,0,card)
-    } else {
-      to.cards.push(card)
+export async function POST(req) {
+  try {
+    const body = await req.json();
+    const { fromColumnId, toColumnId, cardId, position, ifVersion } = body || {};
+    
+    if (!toColumnId || !cardId) {
+      return NextResponse.json({ 
+        error: 'Missing required fields: toColumnId, cardId' 
+      }, { status: 400 });
     }
-    await putBoard(board)
-    return NextResponse.json({ ok:true, board })
-  } catch(err){
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    
+    const origin = new URL(req.url).origin;
+    const res = await fetch(`${origin}/api/board/apply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        op: 'move_card',
+        args: { fromColumnId, toColumnId, cardId, position },
+        ifVersion
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    const json = await res.json().catch(() => ({ error: 'Unknown error' }));
+    return NextResponse.json(json, { status: res.status });
+  } catch (err) {
+    console.error('move-card delegation error:', err);
+    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
   }
 }
-

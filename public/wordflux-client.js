@@ -2,7 +2,7 @@
 // This file is loaded separately to avoid SSR issues
 
 window.initWordFlux = function() {
-  console.log('WordFlux client initializing...');
+  console.log('🚀 WordFlux client initializing...', new Date().toISOString());
   // Get initial board from window or use default
   const initialBoard = window.__WF_INITIAL_BOARD || {
     id: "default",
@@ -29,32 +29,45 @@ window.initWordFlux = function() {
   // Mobile drawer elements
   const chatToggle = document.getElementById('chat-toggle');
   const chatSidebar = document.getElementById('chat-sidebar');
+  const chatSidebarMobile = document.getElementById('chat-sidebar-mobile');
   const sidebarBackdrop = document.getElementById('sidebar-backdrop');
   const sidebarClose = document.getElementById('sidebar-close');
   
-  // Mobile drawer toggle handler
-  if (chatToggle && chatSidebar) {
+  // Mobile drawer toggle handler  
+  if (chatToggle && chatSidebarMobile) {
+    console.log('✅ Mobile chat toggle found, adding click handler');
     chatToggle.addEventListener('click', function() {
-      chatSidebar.classList.toggle('-translate-x-full');
-      chatSidebar.classList.toggle('translate-x-0');
-      sidebarBackdrop.classList.toggle('hidden');
-      sidebarBackdrop.classList.toggle('block');
+      console.log('🔄 Toggle clicked!');
+      // Toggle mobile drawer
+      chatSidebarMobile.classList.remove('-translate-x-full');
+      chatSidebarMobile.classList.add('translate-x-0');
+      // Show backdrop
+      if (sidebarBackdrop) {
+        sidebarBackdrop.classList.remove('hidden');
+        sidebarBackdrop.classList.add('block');
+      }
+    });
+  } else {
+    console.error('❌ Chat toggle or mobile sidebar not found!', { chatToggle, chatSidebarMobile });
+  }
+  
+  // Mobile drawer close handlers
+  const mobileCloseBtn = document.querySelector('[data-close-mobile]');
+  if (mobileCloseBtn && chatSidebarMobile) {
+    mobileCloseBtn.addEventListener('click', function() {
+      chatSidebarMobile.classList.add('-translate-x-full');
+      chatSidebarMobile.classList.remove('translate-x-0');
+      if (sidebarBackdrop) {
+        sidebarBackdrop.classList.add('hidden');
+        sidebarBackdrop.classList.remove('block');
+      }
     });
   }
   
-  if (sidebarClose && chatSidebar) {
-    sidebarClose.addEventListener('click', function() {
-      chatSidebar.classList.add('-translate-x-full');
-      chatSidebar.classList.remove('translate-x-0');
-      sidebarBackdrop.classList.add('hidden');
-      sidebarBackdrop.classList.remove('block');
-    });
-  }
-  
-  if (sidebarBackdrop && chatSidebar) {
+  if (sidebarBackdrop && chatSidebarMobile) {
     sidebarBackdrop.addEventListener('click', function() {
-      chatSidebar.classList.add('-translate-x-full');
-      chatSidebar.classList.remove('translate-x-0');
+      chatSidebarMobile.classList.add('-translate-x-full');
+      chatSidebarMobile.classList.remove('translate-x-0');
       sidebarBackdrop.classList.add('hidden');
       sidebarBackdrop.classList.remove('block');
     });
@@ -182,7 +195,12 @@ window.initWordFlux = function() {
             cgStatus.textContent = 'Campanha criada com sucesso!';
             setTimeout(() => {
               campaignModal.style.display = 'none';
-              location.reload(); // Reload to show new cards
+              // Trigger board refresh instead of page reload
+        if (window.__WF_BOARD_MUTATE) {
+          window.__WF_BOARD_MUTATE();
+        } else {
+          location.reload();
+        } // Reload to show new cards
             }, 1500);
           }
         } catch (e) {
@@ -235,7 +253,12 @@ window.initWordFlux = function() {
           })
         });
         
-        location.reload();
+        // Trigger board refresh instead of page reload
+        if (window.__WF_BOARD_MUTATE) {
+          window.__WF_BOARD_MUTATE();
+        } else {
+          location.reload();
+        }
       } catch (e) {
         console.error('WIP limit error:', e);
         alert('Failed to update WIP limit');
@@ -258,7 +281,12 @@ window.initWordFlux = function() {
         });
         
         // Simple reload for now
-        location.reload();
+        // Trigger board refresh instead of page reload
+        if (window.__WF_BOARD_MUTATE) {
+          window.__WF_BOARD_MUTATE();
+        } else {
+          location.reload();
+        }
       } catch (e) {
         console.error('Move error:', e);
       }

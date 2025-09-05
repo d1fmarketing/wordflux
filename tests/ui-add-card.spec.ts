@@ -26,5 +26,9 @@ test.describe('UI add card (optional)', () => {
 
     // Expect card to appear
     await expect(column.getByText(title)).toBeVisible({ timeout: 10000 });
+    
+    // Check for toast notification (ARIA-based)
+    const toast = page.locator('[role="status"], [aria-live], [data-hot-toast-paused]');
+    await expect(toast).toContainText(/created|added|success/i, { timeout: 4000 });
   });
 });

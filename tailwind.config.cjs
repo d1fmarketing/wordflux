@@ -60,5 +60,16 @@ module.exports = {
       }
     }
   },
+  safelist: [
+    // Ensure responsive utilities are generated
+    'hidden', 'flex', 'block',
+    'lg:flex', 'lg:hidden', 'lg:block', 'lg:static', 'lg:translate-x-0',
+    'sm:flex', 'sm:hidden', 'sm:grid-cols-2',
+    'sm:static', 'sm:translate-x-0',
+    'w-[280px]', 'min-h-[50vh]',
+    'grid', 'grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3',
+    '-translate-x-full', 'translate-x-0',
+    'transform', 'transition-transform', 'duration-300'
+  ],
   plugins: [],
 }

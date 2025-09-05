@@ -41,7 +41,7 @@ Key parts:
 
 ## Environment Variables
 - `OPENAI_API_KEY` (required): API key for OpenAI.
-- `OPENAI_MODEL` or `OPENAI_CHAT_MODEL` (optional): Model name; defaults to `gpt-5`.
+- `OPENAI_MODEL` (optional): Model name; defaults to `gpt-5-mini`. Available: `gpt-5`, `gpt-5-mini`, `gpt-5-nano`.
 - `AWS_REGION` (optional): Enables DynamoDB persistence when set with `DYNAMO_TABLE`.
 - `DYNAMO_TABLE` (optional): DynamoDB table name.
 - `BOARD_PK` (optional): Partition key for the board item. Defaults to `board#default`.
@@ -59,9 +59,47 @@ Notes
 - `npm run dev:https` uses `server.js` on `:3443` and expects `cert.pem`/`key.pem` in the current working directory.
 - Seed the board via `npm run seed` or `POST /api/board/seed`.
 
-## Planned Enhancements (tracked in tasks)
-- LocalStorage persistence for board state (load first from local, then API; auto‑save on changes).
-- Actionable AI suggestions (e.g., one‑click "Apply" to move cards).
-- Inline card title editing.
-- CSV export and activity history.
+## v0.3.3 Production Release Updates
+
+### New Component Architecture
+- **Board.jsx**: Main board container with SWR for data fetching
+- **Column.jsx**: Column component with inline AddCardInline for card creation
+- **Card.jsx**: Card component with edit and delete operations
+- **FilterBar.jsx**: Filters with SavedViews dropdown for persistence
+- **ChatPanel.jsx**: AI chat interface with length modes
+- **UpgradePrompt.jsx**: Pro feature monetization modal with useProStatus hook
+
+### GPT-5 Integration Details
+- **Model Configuration**: Uses `gpt-5-mini` for optimal cost/performance balance
+- **Internal API Calls**: Fixed to use `http://localhost:3000` to avoid SSL errors
+- **Version Tracking**: Board operations include version for conflict detection
+- **Error Handling**: Graceful handling of version conflicts with retry logic
+- **Action DSL**: Supports create_card, update_card, move_card, delete_card, comment operations
+- **Card Queries**: Flexible targeting via ID or search queries ("title:foo priority:high")
+- **See [GPT5_SETUP.md](./GPT5_SETUP.md)** for detailed troubleshooting guide
+
+### Enhanced API Endpoints
+- **POST /api/ai**: GPT-5 powered assistant (≤60 words, JSON-only actions)
+- **POST /api/board/apply**: New operations: create_card, create_column, rename_column, delete_column
+- **POST /api/views/save**: Save filter configurations
+- **GET /api/views/get**: Retrieve saved views
+- **POST /api/billing/checkout**: Stripe integration for Pro upgrade
+
+### Completed Features (v0.3.3)
+- ✅ Inline card creation with "Add card" buttons in column footers
+- ✅ Dynamic column management (create/rename/delete)
+- ✅ Tightened AI responses (≤60 words, JSON-only for board modifications)
+- ✅ Saved filter views with localStorage persistence
+- ✅ Pro monetization with Voice & Image feature gating
+- ✅ Toast notifications via react-hot-toast for user feedback
+- ✅ Mobile responsive design with collapsible chat sidebar
+- ✅ Component extraction for improved modularity
+
+### Upcoming Features (Roadmap)
+- Realtime Voice with function-calling for hands-free operation
+- Usage metering (100 free actions, Pro = unlimited)
+- Multi-board sharing with permissions
+- PostgreSQL database with Prisma ORM
+- Socket.io for real-time collaboration
+- NextAuth.js for authentication
 

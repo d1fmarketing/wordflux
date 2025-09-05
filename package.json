@@ -12,6 +12,8 @@
     "format": "prettier --write .",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:api": "ENABLE_TEST_ENDPOINTS=1 npx playwright test tests/api-regression --reporter=list",
+    "test:ui": "UI_TESTS=1 NEXT_PUBLIC_TOAST_DURATION_MS=5000 npx playwright test tests/ui-* --reporter=list",
     "prepare": "husky install"
   },
   "dependencies": {
@@ -19,18 +21,21 @@
     "@aws-sdk/lib-dynamodb": "^3.636.0",
     "@hello-pangea/dnd": "^16.5.0",
     "@netlify/plugin-nextjs": "^5.13.0",
-    "@tailwindcss/postcss": "^4.1.12",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "dotenv": "^17.2.1",
     "framer-motion": "^12.23.12",
+    "lucide-react": "^0.542.0",
     "next": "14.2.5",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-hot-toast": "^2.6.0",
     "react-markdown": "^10.1.0",
-    "tailwind-merge": "^2.5.2"
+    "stripe": "^18.5.0",
+    "swr": "^2.3.6",
+    "tailwind-merge": "^2.5.2",
+    "zod": "^4.1.5"
   },
   "type": "module",
   "lint-staged": {
@@ -52,6 +57,6 @@
     "postcss": "^8.5.6",
     "prettier": "^3.3.3",
     "puppeteer": "^24.18.0",
-    "tailwindcss": "^4.1.12"
+    "tailwindcss": "^3.4.0"
   }
 }

@@ -36,7 +36,7 @@ export default async function RootLayout({ children }) {
         {initialBoard ? (
           <script
             dangerouslySetInnerHTML={{
-              __html: `window.__WF_INITIAL_BOARD = ${JSON.stringify(initialBoard)};`,
+              __html: `window.__WF_INITIAL_BOARD = ${JSON.stringify(initialBoard).replace(/</g, '\\u003c')};`,
             }}
           />
         ) : null}
