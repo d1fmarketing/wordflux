@@ -1,65 +1,99 @@
-# WordFlux - AI-Powered Board Organization Platform
+# WordFlux Minimal — Planka + Chat
 
-## Current Status: v0.2.5 (Best Working Version - September 2025)
+**Version**: 0.4.0-minimal  
+**Status**: Production Ready  
+**URL**: https://hewlett-influences-estate-insight.trycloudflare.com
 
-### 🚨 Critical Note
-After 4+ days of intensive debugging, this is the most stable version achieved. The platform is ~80% functional with full GPT-5 integration working.
+## Overview
 
-## Live Demo
-- **Public URL**: https://smithsonian-posing-interfaces-bias.trycloudflare.com
-- **Status**: 100% functional with GPT-5 integration (model: `gpt-5-2025-08-07`)
+WordFlux Minimal is a streamlined application that combines a Planka board embed with an AI-powered chat assistant. The app provides a clean interface with Planka on the left and GPT-5 powered chat on the right for workflow management and task organization.
 
-## Features Working ✅
-1. **GPT-5 Chat Controller** - AI assistant controlling the platform
-2. **Campaign Generator** - Creates complete marketing campaigns with phases
-3. **Board Management** - Multiple boards with localStorage persistence
-4. **Card Movement** - Move cards between columns
-5. **WhatsApp Sharing** - Share board summaries
-6. **Activity History** - Track all board changes
-7. **CSV Export** - Export board data
-8. **Inline Editing** - Double-click to edit cards
+## Features
+
+- **Planka Integration**: Embedded Planka board via iframe with HTTPS proxy support
+- **AI Chat Assistant**: GPT-5 powered conversational interface for workflow guidance
+- **Minimal Architecture**: Simplified codebase with only essential endpoints
+- **Production Ready**: Stable deployment with PM2 process management
+
+## API Endpoints
+
+### Available
+- `GET /api/health` - Health check endpoint
+- `POST /api/chat` - AI chat interface
+- `/planka/[[...path]]` - Proxy route for Planka (HTTPS-safe iframe)
+
+### Removed (No longer in minimal mode)
+- ~~`/api/board/*`~~ - Internal board operations
+- ~~`/api/agent/*`~~ - Agent interpretation
+- ~~`/api/admin/*`~~ - Admin endpoints
 
 ## Quick Start
+
+### Prerequisites
+- Node.js 22.19.0 or higher
+- PM2 for process management
+- OpenAI API key for chat functionality
+
+### Installation
 
 ```bash
 cd wordflux
 npm install
 
-# Set up environment variables
-echo "OPENAI_API_KEY=your_key_here" > .env.local
-echo "OPENAI_MODEL=gpt-5-2025-08-07" >> .env.local
-
-# Build and start
-npm run build
-pm2 start npm --name wordflux -- start
-
-# For public access
-cloudflared tunnel --url http://localhost:3003
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local with your configuration
 ```
 
-## The 4-Day Debugging Journey
+### Environment Configuration
 
-### Days 1-3: Building Core Features
-- Implemented Kanban board with drag-drop
-- Integrated GPT-5 API (model: gpt-5-2025-08-07)
-- Added campaign generator
-- Built chat controller
-- Multiple board support
+```bash
+# Required
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5-mini  # or gpt-5-2025-08-07
 
-### Days 4-5: Critical JavaScript Crisis
-**Problem**: "Invalid or unexpected token" - ALL JavaScript broken on deployment
-**Root Cause**: Next.js SSR was corrupting inline JavaScript
-- Regex `/^board-(\d+)$/` became `/^board-(d+)$/` 
-- String escaping was being destroyed
-**Solution**: Separated ALL JavaScript into `/public/wordflux-client.js`
-**Result**: Fixed! 100% functionality restored
+# For Planka HTTPS embed
+NEXT_PUBLIC_PLANKA_BASE_URL=https://your-planka.example.com
 
-## Environment Variables
+# For Planka HTTP (local/dev) with proxy
+PLANKA_BASE_URL=http://localhost:3015
+NEXT_PUBLIC_PLANKA_BASE_URL=/planka  # Uses same-origin proxy
+PLANKA_PROXY_TIMEOUT_MS=10000        # Optional
+```
 
-```env
-OPENAI_API_KEY=your_api_key_here    # Required
-OPENAI_MODEL=gpt-5-2025-08-07       # GPT-5 model ID
-PORT=3003                            # Server port
+### Running the Application
+
+#### Development Mode
+```bash
+# Standard development
+npm run dev
+
+# Local mode (no external dependencies)
+npm run dev:local
+
+# HTTPS development
+npm run dev:https
+```
+
+#### Production Mode
+```bash
+# Build the application
+npm run build
+
+# Start with PM2
+pm2 start npm --name wordflux -- start
+
+# Or direct start
+npm start
+```
+
+### Public Access via Cloudflare Tunnel
+```bash
+# Start tunnel (URL changes each session)
+cloudflared tunnel --url http://localhost:3000
+
+# Or use PM2-managed tunnel
+pm2 start cloudflared --name wordflux-tunnel -- tunnel --no-autoupdate --url http://localhost:3000
 ```
 
 ## Project Structure
@@ -67,104 +101,87 @@ PORT=3003                            # Server port
 ```
 wordflux/
 ├── app/
-│   ├── page.js              # Main app (SSR with separated JS)
-│   ├── api/
-│   │   ├── chat/            # GPT-5 integration
-│   │   └── board/           # Board operations
-│   └── lib/
-│       └── board.js         # Board utilities
-├── public/
-│   └── wordflux-client.js   # ALL client-side JS (SSR fix)
-├── test-final.js            # Puppeteer test suite
-├── netlify.toml             # Netlify config (not working)
-└── ecosystem.config.cjs     # PM2 configuration
+│   ├── api/           # Minimal API routes
+│   │   ├── chat/      # AI chat endpoint
+│   │   ├── health/    # Health check
+│   │   └── planka/    # Planka proxy
+│   ├── components/    # React components
+│   │   ├── ChatPanel.jsx
+│   │   ├── ChatInput.jsx
+│   │   └── ErrorBoundary.jsx
+│   └── lib/           # Utilities
+├── public/            # Static assets
+├── scripts/           # Utility scripts
+├── tests/             # Test suites
+└── _archive/          # Legacy code archive
 ```
 
 ## Testing
 
-Run comprehensive test suite with Puppeteer:
-
 ```bash
-node test-final.js
+# Run API tests
+npm run test:api
+
+# Run UI tests
+npm run test:ui
+
+# Run all E2E tests
+npm run test:e2e
+
+# Lint and format
+npm run lint
+npm run format
 ```
 
-Test coverage:
-- ✅ Chat functionality
-- ✅ Campaign modal
-- ✅ Board selector
-- ✅ Menu system
-- ✅ Card movements
+## Process Management
 
-Current score: **100% FUNCTIONAL**
+```bash
+# View processes
+pm2 status
 
-## Deployment Methods Attempted
+# View logs
+pm2 logs wordflux --lines 50
 
-### 1. Netlify ❌
-- **Issue**: Next.js API routes return 404
-- **Root Cause**: Incompatibility with Next.js App Router
-- **Status**: Abandoned
+# Restart application
+pm2 restart wordflux --update-env
 
-### 2. Cloudflare Tunnel ✅ 
-- **Working**: Full functionality with public URL
-- **Command**: `cloudflared tunnel --url http://localhost:3003`
-- **URL**: Changes each session (e.g., smithsonian-posing-interfaces-bias.trycloudflare.com)
+# Save PM2 configuration
+pm2 save
+```
+
+## Monitoring
+
+```bash
+# Health check
+curl -s http://localhost:3000/api/health | jq
+
+# Test chat endpoint
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"hello"}' | jq
+```
+
+## Migration from Full Version
+
+This minimal version has removed the internal Kanban board implementation in favor of Planka embed. Legacy code has been archived in `_archive/` directory for reference.
+
+### Key Changes
+- Removed internal board APIs and database dependencies
+- Simplified to chat + Planka embed only
+- Reduced dependencies by ~60%
+- Streamlined codebase for easier maintenance
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 with App Router
-- **AI Model**: GPT-5 (gpt-5-2025-08-07)  
+- **Framework**: Next.js 14.2.5 (App Router)
+- **UI**: React 18.3.1
+- **Styling**: Tailwind CSS
+- **AI**: OpenAI GPT-5
 - **Deployment**: PM2 + Cloudflare Tunnel
-- **Storage**: localStorage (client-side)
-- **Testing**: Puppeteer
-- **Node**: v22.19.0
 
-## Key Files Explained
+## Support
 
-### `/public/wordflux-client.js`
-The most critical file - contains ALL client-side JavaScript logic separated from SSR to avoid corruption. This separation fixed the "Invalid or unexpected token" errors.
-
-### `/app/page.js`
-Main application component with SSR. Passes initial board data via `window.__WF_INITIAL_BOARD`.
-
-### `/test-final.js`  
-Puppeteer test suite that validates all functionality. Run this to verify the platform is working.
-
-## PM2 Process Management
-
-```bash
-# Start
-pm2 start npm --name wordflux -- start
-
-# Monitor
-pm2 logs wordflux
-pm2 status
-
-# Restart after changes
-pm2 restart wordflux
-```
-
-## Future Improvements
-
-1. **State Management**: Migrate from localStorage to proper state management
-2. **Real-time Collaboration**: Add WebSocket support for multi-user boards
-3. **Database**: Move from localStorage to PostgreSQL/MongoDB
-4. **Authentication**: Add user accounts and board permissions
-5. **Mobile App**: React Native version
-6. **Better Deployment**: Vercel or proper cloud hosting
-
-## Lessons Learned
-
-1. **Next.js SSR can corrupt inline JavaScript** - Always separate client code
-2. **Test with automation** - Puppeteer caught issues manual testing missed
-3. **GPT-5 is powerful** - The AI integration transforms the UX
-4. **Persistence matters** - Users frustrated when work is lost
-5. **Deployment complexity** - What works locally may break in production
-
-## Credits
-
-Built with extreme frustration and persistence by **RJ** over 4-5 days of intensive debugging.
-
-Special recognition for finally solving the SSR JavaScript corruption issue that was breaking everything.
+For issues or questions, please check the CLAUDE.md file for detailed development guidance or create an issue in the repository.
 
 ## License
 
@@ -172,6 +189,4 @@ MIT
 
 ---
 
-**Version**: 0.2.5 (September 2025)  
-**Status**: Best working version - 100% functional  
-**Note**: This is the main stable baseline for future development
+**Last Updated**: September 7, 2025

@@ -2,6 +2,88 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.5 – Critical Stability Release (September 2025)
+
+### Drag-and-Drop Stability Fixes
+- **Fixed "cannot find draggable" errors**: Added required `style={provided.draggableProps.style}` binding to Card.jsx
+- **Prevented mid-drag re-renders**: Implemented dragging state with SWR pause during drag operations
+- **Fixed animation conflicts**: Gated hover animations when `snapshot.isDragging` to prevent transform conflicts
+- **Clean drag lifecycle**: Added `onDragStart` and `finally` block in `handleDragEnd` to ensure state cleanup
+
+### Conversational AI Improvements
+- **Fixed "No actions needed" for greetings**: ChatPanel now falls back to `/api/chat` when AI returns no actions
+- **Natural language responses**: "oi" and "hello" now return friendly conversational replies in Portuguese/English
+- **Maintained action processing**: Action-generating prompts still work correctly with board updates
+
+### Concurrency Control Implementation
+- **Version tracking**: Added `ifVersion` parameter to all mutation operations
+- **Idempotency**: Implemented `requestId` to prevent duplicate operations
+- **Conflict resolution**: 409 conflicts trigger automatic board resync with toast notifications
+- **Operations covered**: move_card, update_card, delete_card, create_card, bulk operations, column operations
+
+### Error Handling Enhancements
+- **Consistent error envelopes**: All routes wrapped with `withErrorHandling` utility
+- **Standardized format**: `{ error: string, details?: any }` structure across all endpoints
+- **Move-card hardening**: Added error wrapper to align with other endpoints
+
+### CSRF Documentation
+- **Added clarifying notes**: Documented that CSRF is disabled at route level due to Edge runtime limitations
+- **Future-ready**: Kept implementation as reference for future per-route header checks
+
+### MCP Server Integrations
+- **GitHub MCP**: Connected for natural language git operations
+- **Filesystem MCP**: Browse project files with context awareness
+- **Memory MCP**: Persistent state storage between sessions
+- **Playwright MCP**: Browser automation without writing test scripts
+- **Removed unnecessary**: Slack, Brave Search, Fetch (redundant with built-in tools)
+
+### Testing Infrastructure
+- **New test scripts**: `test-dnd-fixes.cjs` for Dr. House prescription verification
+- **MCP test suite**: Comprehensive testing of all connected MCP servers
+- **Live validation**: Tests confirm all fixes working in production
+
+## v0.3.4 – GPT-5 Integration Fixes & UX Improvements (September 2025)
+
+### GPT-5 Fixes
+- **Fixed SSL errors**: Changed internal API calls from HTTPS to HTTP (localhost:3000)
+- **Fixed drag-and-drop glitch**: Cards no longer jump when dragged with filters active
+  - Find cards by ID instead of filtered index
+  - Map filtered indices to unfiltered positions correctly
+  - Block same-column reordering when filters are active
+- **Fixed version conflicts**: Proper board version tracking and conflict resolution
+- **Fixed model configuration**: Using correct GPT-5 model names (gpt-5, gpt-5-mini, gpt-5-nano)
+- **Fixed operations format**: Board operations now sent as arrays as expected by API
+
+### Documentation
+- **Created GPT5_SETUP.md**: Complete setup and troubleshooting guide for GPT-5
+- **Updated all docs**: Corrected model information across README, API_DOCS, ARCHITECTURE
+
+### UX Improvements Completed
+- **Filter pills**: Active filters shown as dismissible pills with one-click clear
+- **Quick priority chips**: Fast filtering with High/Medium/Low buttons
+- **Select visible**: One-click to select all filtered cards for bulk operations
+- **Keyboard navigation**: 
+  - Tab to focus cards
+  - Enter opens card inspector
+  - Space toggles selection
+  - Alt+Arrow moves cards between columns
+  - Full ARIA support for screen readers
+- **Undo system**: 5-second undo for delete/move operations with toast notifications
+- **Visual polish**:
+  - WIP badges with glow effect when at/over limit
+  - Enhanced drop zone highlighting with gradient borders
+  - Empty state messages with helpful prompts
+  - Loading skeletons with smooth animations
+  - Inline title editing on double-click
+- **Saved views enhancement**:
+  - View chips displayed as pills
+  - One-click view deletion
+  - Better visual organization
+- **Performance optimizations**:
+  - React.memo on Card and Column components
+  - Optimized re-renders
+  - Improved drag-and-drop performance
+
 - v0.2.0 – First working GPT-5 MVP
   - Chat endpoint wired to OpenAI Chat Completions
   - Server-rendered board with sample columns/cards
@@ -47,3 +129,16 @@ All notable changes to this project are documented here.
   - One-click share to WhatsApp with board summary
   - Includes last 3 recent activities
   - Works per selected board
+
+- v0.3.3 – Production Release (From Demo to Product)
+  - Inline card creation with "Add card" button in each column
+  - Column management (create/rename/delete columns)
+  - Tightened AI responses (≤60 words, JSON-only actions)
+  - Saved filter views with localStorage persistence
+  - Pro monetization with gated Voice & Image features
+  - Toast notifications via react-hot-toast
+  - Component extraction (Column.jsx) for modularity
+  - Mobile responsive with collapsible chat sidebar
+  - Enhanced API operations: create_card, create_column
+  - Comprehensive Puppeteer test suite
+  - Screenshots for desktop/tablet/mobile viewports
