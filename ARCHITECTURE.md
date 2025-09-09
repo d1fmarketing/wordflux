@@ -98,6 +98,41 @@ Notes
 ### Upcoming Features (Roadmap)
 - Realtime Voice with function-calling for hands-free operation
 - Usage metering (100 free actions, Pro = unlimited)
+
+## v0.3.5 Critical Stability Improvements
+
+### Drag-and-Drop Architecture
+- **Style Binding**: Card components properly bind `provided.draggableProps.style` for @hello-pangea/dnd
+- **Dragging State Management**: Board maintains `dragging` state to pause SWR during drag operations
+- **Animation Gating**: Framer Motion animations disabled when `snapshot.isDragging` to prevent conflicts
+- **Clean Lifecycle**: `onDragStart` sets dragging flag, `handleDragEnd` clears in `finally` block
+
+### Concurrency Control System
+- **Version Tracking**: All board mutations accept `ifVersion` parameter for optimistic concurrency control
+- **Idempotency**: Operations support `requestId` to prevent duplicate processing
+- **Conflict Resolution**: 409 responses trigger automatic board resync with user notification
+- **Coverage**: Applied to 8 operations including move_card, update_card, delete_card, create_card, bulk operations
+
+### Error Handling Patterns
+- **Unified Wrapper**: `withErrorHandling` utility in `app/lib/api-utils.js`
+- **Consistent Envelope**: All errors return `{ error: string, details?: any }` structure
+- **HTTP Status Codes**: 400 (bad request), 404 (not found), 409 (conflict), 500 (server error)
+- **Client Recovery**: Automatic retry logic for version conflicts
+
+### Conversational AI Flow
+- **ChatPanel Logic**: 
+  1. Calls `/api/ai` in action mode
+  2. If no actions returned, falls back to `/api/chat`
+  3. Displays conversational response for greetings
+- **AI Route Behavior**: Returns empty actions array for non-actionable inputs
+- **Chat Route**: Provides natural language responses in Portuguese/English
+
+### MCP Server Integration
+- **GitHub MCP**: Natural language git operations via stdio server
+- **Filesystem MCP**: Context-aware file browsing with 228 JS files
+- **Memory MCP**: Persistent state storage between development sessions
+- **Playwright MCP**: Browser automation without manual script writing
+- **Architecture**: MCP servers connect via stdio or SSE transports, enabling 10x development speed
 - Multi-board sharing with permissions
 - PostgreSQL database with Prisma ORM
 - Socket.io for real-time collaboration

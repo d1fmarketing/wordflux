@@ -1,79 +1,99 @@
-# WordFlux - AI-Powered Board Organization Platform
+# WordFlux Minimal — Planka + Chat
 
-## Current Status: v0.3.3 (Production Ready - September 2025)
+**Version**: 0.4.0-minimal  
+**Status**: Production Ready  
+**URL**: https://hewlett-influences-estate-insight.trycloudflare.com
 
-### 🎯 Product Release
-WordFlux has evolved from demo to production-ready product with inline card creation, column management, saved views, and Pro monetization features. Full GPT-5 integration with tightened AI responses (≤60 words).
+## Overview
 
-## Live Demo
-- **Public URL**: https://smithsonian-posing-interfaces-bias.trycloudflare.com
-- **Status**: 100% functional with GPT-5 integration (model: `gpt-5-mini`)
+WordFlux Minimal is a streamlined application that combines a Planka board embed with an AI-powered chat assistant. The app provides a clean interface with Planka on the left and GPT-5 powered chat on the right for workflow management and task organization.
 
-## Features Working ✅
-1. **GPT-5 Chat Controller** - Tightened AI responses (≤60 words), action-focused
-2. **Inline Card Creation** - "Add card" button in each column footer
-3. **Column Management** - Create, rename, and delete columns dynamically
-4. **Saved Filter Views** - Save and load filter combinations
-5. **Pro Monetization** - Voice & Image features gated with upgrade prompt
-6. **Campaign Generator** - Creates complete marketing campaigns
-7. **Board Management** - Multiple boards with localStorage persistence
-8. **Card Operations** - Move, edit, delete with toast notifications
-9. **WhatsApp Sharing** - Share board summaries
-10. **Activity History** - Track all board changes
-11. **CSV Export** - Export board data
-12. **Mobile Responsive** - Collapsible chat sidebar with FAB toggle
+## Features
+
+- **Planka Integration**: Embedded Planka board via iframe with HTTPS proxy support
+- **AI Chat Assistant**: GPT-5 powered conversational interface for workflow guidance
+- **Minimal Architecture**: Simplified codebase with only essential endpoints
+- **Production Ready**: Stable deployment with PM2 process management
+
+## API Endpoints
+
+### Available
+- `GET /api/health` - Health check endpoint
+- `POST /api/chat` - AI chat interface
+- `/planka/[[...path]]` - Proxy route for Planka (HTTPS-safe iframe)
+
+### Removed (No longer in minimal mode)
+- ~~`/api/board/*`~~ - Internal board operations
+- ~~`/api/agent/*`~~ - Agent interpretation
+- ~~`/api/admin/*`~~ - Admin endpoints
 
 ## Quick Start
+
+### Prerequisites
+- Node.js 22.19.0 or higher
+- PM2 for process management
+- OpenAI API key for chat functionality
+
+### Installation
 
 ```bash
 cd wordflux
 npm install
 
-# Set up environment variables
-echo "OPENAI_API_KEY=your_key_here" > .env.local
-echo "OPENAI_MODEL=gpt-5-mini" >> .env.local
-
-# Build and start
-npm run build
-pm2 start npm --name wordflux -- start
-
-# For public access
-cloudflared tunnel --url http://localhost:3000
+# Configure environment
+cp .env.example .env.local
+# Edit .env.local with your configuration
 ```
 
-## GPT-5 Documentation
-See [GPT5_SETUP.md](./GPT5_SETUP.md) for detailed setup, troubleshooting, and best practices.
+### Environment Configuration
 
-## The 4-Day Debugging Journey
+```bash
+# Required
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-5-mini  # or gpt-5-2025-08-07
 
-### Development Timeline
+# For Planka HTTPS embed
+NEXT_PUBLIC_PLANKA_BASE_URL=https://your-planka.example.com
 
-#### v0.2.x: Foundation (Days 1-3)
-- Implemented Kanban board with drag-drop
-- Integrated GPT-5 API (model: gpt-5-mini)
-- Added campaign generator
-- Built chat controller
-- Multiple board support
+# For Planka HTTP (local/dev) with proxy
+PLANKA_BASE_URL=http://localhost:3015
+NEXT_PUBLIC_PLANKA_BASE_URL=/planka  # Uses same-origin proxy
+PLANKA_PROXY_TIMEOUT_MS=10000        # Optional
+```
 
-#### Critical JavaScript Crisis (Days 4-5)
-**Problem**: "Invalid or unexpected token" - ALL JavaScript broken on deployment
-**Solution**: Separated ALL JavaScript into `/public/wordflux-client.js`
+### Running the Application
 
-#### v0.3.3: Product Release (Day 6)
-- **Inline Card Creation**: Add cards directly from column footers
-- **Column Management**: Dynamic column operations (add/rename/delete)
-- **Saved Views**: Filter persistence with localStorage
-- **Pro Features**: Monetization with gated Voice & Image features
-- **Toast Notifications**: User feedback via react-hot-toast
-- **Component Architecture**: Extracted Column component for modularity
-- **AI Tightening**: Responses limited to ≤60 words, JSON-only actions
+#### Development Mode
+```bash
+# Standard development
+npm run dev
 
-## Environment Variables
+# Local mode (no external dependencies)
+npm run dev:local
 
-```env
-OPENAI_API_KEY=your_api_key_here    # Required
-OPENAI_MODEL=gpt-5-2025-08-07       # GPT-5 model ID
-PORT=3003                            # Server port
+# HTTPS development
+npm run dev:https
+```
+
+#### Production Mode
+```bash
+# Build the application
+npm run build
+
+# Start with PM2
+pm2 start npm --name wordflux -- start
+
+# Or direct start
+npm start
+```
+
+### Public Access via Cloudflare Tunnel
+```bash
+# Start tunnel (URL changes each session)
+cloudflared tunnel --url http://localhost:3000
+
+# Or use PM2-managed tunnel
+pm2 start cloudflared --name wordflux-tunnel -- tunnel --no-autoupdate --url http://localhost:3000
 ```
 
 ## Project Structure
@@ -81,141 +101,87 @@ PORT=3003                            # Server port
 ```
 wordflux/
 ├── app/
-│   ├── page.js              # Main app with Toaster & Pro features
-│   ├── components/
-│   │   ├── Board.jsx        # Board container with SWR
-│   │   ├── Column.jsx       # Column component with inline add
-│   │   ├── Card.jsx         # Card with edit/delete
-│   │   ├── FilterBar.jsx    # Filters with saved views
-│   │   ├── ChatPanel.jsx    # AI chat interface
-│   │   └── UpgradePrompt.jsx # Pro monetization modal
-│   ├── api/
-│   │   ├── ai/              # Tightened GPT-5 (≤60 words)
-│   │   ├── board/           # Enhanced board operations
-│   │   │   └── apply/       # New ops: create_card, create_column
-│   │   ├── views/           # Save/load filter views
-│   │   └── billing/         # Stripe checkout (stub)
-│   └── lib/
-│       └── board.js         # Board utilities
-├── public/
-│   └── wordflux-client.js   # Legacy client JS (SSR fix)
-├── test-product.js          # v0.3.3 feature tests
-├── test-final.js            # Legacy test suite
-└── ecosystem.config.cjs     # PM2 configuration
+│   ├── api/           # Minimal API routes
+│   │   ├── chat/      # AI chat endpoint
+│   │   ├── health/    # Health check
+│   │   └── planka/    # Planka proxy
+│   ├── components/    # React components
+│   │   ├── ChatPanel.jsx
+│   │   ├── ChatInput.jsx
+│   │   └── ErrorBoundary.jsx
+│   └── lib/           # Utilities
+├── public/            # Static assets
+├── scripts/           # Utility scripts
+├── tests/             # Test suites
+└── _archive/          # Legacy code archive
 ```
 
 ## Testing
 
-### v0.3.3 Product Tests
 ```bash
-node test-product.js
+# Run API tests
+npm run test:api
+
+# Run UI tests
+npm run test:ui
+
+# Run all E2E tests
+npm run test:e2e
+
+# Lint and format
+npm run lint
+npm run format
 ```
 
-Test coverage:
-- ✅ Filters and search
-- ✅ Saved views
-- ✅ Inline card creation (3 buttons)
-- ✅ Column management
-- ✅ Chat integration
-- ✅ Pro features gate (Voice with PRO badge)
-- ✅ Toast notifications
-- ✅ Mobile responsive (chat toggle FAB)
-- ✅ Screenshots: desktop, tablet, mobile
+## Process Management
 
-### Legacy Tests
 ```bash
-node test-final.js
+# View processes
+pm2 status
+
+# View logs
+pm2 logs wordflux --lines 50
+
+# Restart application
+pm2 restart wordflux --update-env
+
+# Save PM2 configuration
+pm2 save
 ```
 
-Current score: **100% FUNCTIONAL**
+## Monitoring
 
-## Deployment Methods Attempted
+```bash
+# Health check
+curl -s http://localhost:3000/api/health | jq
 
-### 1. Netlify ❌
-- **Issue**: Next.js API routes return 404
-- **Root Cause**: Incompatibility with Next.js App Router
-- **Status**: Abandoned
+# Test chat endpoint
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message":"hello"}' | jq
+```
 
-### 2. Cloudflare Tunnel ✅ 
-- **Working**: Full functionality with public URL
-- **Command**: `cloudflared tunnel --url http://localhost:3000`
-- **URL**: Changes each session (e.g., smithsonian-posing-interfaces-bias.trycloudflare.com)
+## Migration from Full Version
+
+This minimal version has removed the internal Kanban board implementation in favor of Planka embed. Legacy code has been archived in `_archive/` directory for reference.
+
+### Key Changes
+- Removed internal board APIs and database dependencies
+- Simplified to chat + Planka embed only
+- Reduced dependencies by ~60%
+- Streamlined codebase for easier maintenance
 
 ## Tech Stack
 
-- **Framework**: Next.js 14 with App Router
-- **AI Model**: GPT-5 (gpt-5-2025-08-07)  
+- **Framework**: Next.js 14.2.5 (App Router)
+- **UI**: React 18.3.1
+- **Styling**: Tailwind CSS
+- **AI**: OpenAI GPT-5
 - **Deployment**: PM2 + Cloudflare Tunnel
-- **Storage**: localStorage (client-side)
-- **Testing**: Puppeteer
-- **Node**: v22.19.0
 
-## Key Files Explained
+## Support
 
-### `/public/wordflux-client.js`
-The most critical file - contains ALL client-side JavaScript logic separated from SSR to avoid corruption. This separation fixed the "Invalid or unexpected token" errors.
-
-### `/app/page.js`
-Main application component with SSR. Passes initial board data via `window.__WF_INITIAL_BOARD`.
-
-### `/test-final.js`  
-Puppeteer test suite that validates all functionality. Run this to verify the platform is working.
-
-## PM2 Process Management
-
-```bash
-# Start
-pm2 start npm --name wordflux -- start
-
-# Monitor
-pm2 logs wordflux
-pm2 status
-
-# Restart after changes
-pm2 restart wordflux
-```
-
-## API Enhancements (v0.3.3)
-
-### New Operations in `/api/board/apply`
-- `create_card`: Add card inline with `{ columnId, title, description, owner, priority }`
-- `create_column`: Add new column with `{ name }`
-- `rename_column`: Rename existing column
-- `delete_column`: Remove column and its cards
-
-### New Endpoints
-- `POST /api/views/save`: Save filter view
-- `GET /api/views/get`: Load saved views
-- `POST /api/ai`: Tightened AI with JSON schema responses
-- `POST /api/billing/checkout`: Stripe integration (Pro upgrade)
-
-## Next Steps (Roadmap)
-
-### Immediate (After PR)
-1. **Realtime Voice**: Function-calling for Voice sessions
-2. **Usage Metering**: 100 free actions, Pro = unlimited
-3. **Multi-board Sharing**: Board permissions and collaboration
-
-### Future
-1. **Database**: PostgreSQL with Prisma ORM
-2. **Authentication**: NextAuth.js with social logins
-3. **Real-time**: Socket.io for live collaboration
-4. **Mobile App**: React Native with shared components
-5. **Enterprise**: SSO, audit logs, compliance
-
-## Lessons Learned
-
-1. **Next.js SSR can corrupt inline JavaScript** - Always separate client code
-2. **Test with automation** - Puppeteer caught issues manual testing missed
-3. **GPT-5 is powerful** - The AI integration transforms the UX
-4. **Persistence matters** - Users frustrated when work is lost
-5. **Deployment complexity** - What works locally may break in production
-
-## Credits
-
-Built with extreme frustration and persistence by **RJ** over 4-5 days of intensive debugging.
-
-Special recognition for finally solving the SSR JavaScript corruption issue that was breaking everything.
+For issues or questions, please check the CLAUDE.md file for detailed development guidance or create an issue in the repository.
 
 ## License
 
@@ -223,6 +189,4 @@ MIT
 
 ---
 
-**Version**: 0.3.3 (September 2025)  
-**Status**: Production Ready - Full Product Release  
-**Note**: Evolved from demo to monetizable product with Pro features
+**Last Updated**: September 7, 2025

@@ -2,6 +2,46 @@
 
 All notable changes to this project are documented here.
 
+## v0.3.5 – Critical Stability Release (September 2025)
+
+### Drag-and-Drop Stability Fixes
+- **Fixed "cannot find draggable" errors**: Added required `style={provided.draggableProps.style}` binding to Card.jsx
+- **Prevented mid-drag re-renders**: Implemented dragging state with SWR pause during drag operations
+- **Fixed animation conflicts**: Gated hover animations when `snapshot.isDragging` to prevent transform conflicts
+- **Clean drag lifecycle**: Added `onDragStart` and `finally` block in `handleDragEnd` to ensure state cleanup
+
+### Conversational AI Improvements
+- **Fixed "No actions needed" for greetings**: ChatPanel now falls back to `/api/chat` when AI returns no actions
+- **Natural language responses**: "oi" and "hello" now return friendly conversational replies in Portuguese/English
+- **Maintained action processing**: Action-generating prompts still work correctly with board updates
+
+### Concurrency Control Implementation
+- **Version tracking**: Added `ifVersion` parameter to all mutation operations
+- **Idempotency**: Implemented `requestId` to prevent duplicate operations
+- **Conflict resolution**: 409 conflicts trigger automatic board resync with toast notifications
+- **Operations covered**: move_card, update_card, delete_card, create_card, bulk operations, column operations
+
+### Error Handling Enhancements
+- **Consistent error envelopes**: All routes wrapped with `withErrorHandling` utility
+- **Standardized format**: `{ error: string, details?: any }` structure across all endpoints
+- **Move-card hardening**: Added error wrapper to align with other endpoints
+
+### CSRF Documentation
+- **Added clarifying notes**: Documented that CSRF is disabled at route level due to Edge runtime limitations
+- **Future-ready**: Kept implementation as reference for future per-route header checks
+
+### MCP Server Integrations
+- **GitHub MCP**: Connected for natural language git operations
+- **Filesystem MCP**: Browse project files with context awareness
+- **Memory MCP**: Persistent state storage between sessions
+- **Playwright MCP**: Browser automation without writing test scripts
+- **Removed unnecessary**: Slack, Brave Search, Fetch (redundant with built-in tools)
+
+### Testing Infrastructure
+- **New test scripts**: `test-dnd-fixes.cjs` for Dr. House prescription verification
+- **MCP test suite**: Comprehensive testing of all connected MCP servers
+- **Live validation**: Tests confirm all fixes working in production
+
 ## v0.3.4 – GPT-5 Integration Fixes & UX Improvements (September 2025)
 
 ### GPT-5 Fixes

@@ -78,6 +78,24 @@ body: JSON.stringify({
 })
 ```
 
+### 5. "No Actions Needed" for Greetings (FIXED in v0.3.5)
+**Symptom**: AI responds with "No actions needed" to "oi", "hello", or other greetings
+**Cause**: AI in action-only mode doesn't generate conversational responses
+**Fix**: ChatPanel now falls back to `/api/chat` for conversational responses
+```javascript
+// app/components/ChatPanel.jsx
+if (!ai.actions || ai.actions.length === 0) {
+  // Fall back to conversational chat
+  const chat = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ message: text })
+  }).then(r=>r.json());
+  setMessages(m => [...m, { role:'assistant', text: chat.response }]);
+}
+```
+**Result**: Natural conversations in Portuguese/English while maintaining action processing
+
 ## Action DSL Reference
 
 ### Supported Operations
@@ -179,6 +197,51 @@ pm2 monit
 ```
 # Successful operation
 "✅ Created 1 card(s)"
+# Version conflict
+"Version conflict: expected 10, got 11"
+# Conversational fallback
+"No actions generated, falling back to chat"
+```
+
+## Best Practices (v0.3.5)
+
+### 1. Always Use Version Control
+```javascript
+// Include ifVersion in all mutations
+await fetch('/api/board/apply', {
+  body: JSON.stringify({
+    op: 'move_card',
+    args: { ... },
+    ifVersion: currentBoard.version
+  })
+});
+```
+
+### 2. Handle Conflicts Gracefully
+```javascript
+if (response.status === 409) {
+  // Resync board and notify user
+  await mutate(); // SWR refresh
+  toast.error('Board updated - please retry');
+}
+```
+
+### 3. Support Conversational AI
+- Let ChatPanel handle fallback to `/api/chat`
+- Don't force action-only responses
+- Support both task execution and friendly conversation
+
+### 4. Optimize Drag-and-Drop
+- Pause SWR during drag operations
+- Gate animations when dragging
+- Always bind draggable styles
+
+### 5. Use Consistent Error Handling
+```javascript
+// All routes should use withErrorHandling
+export const POST = withErrorHandling(async (req) => {
+  // Route logic here
+});
 
 # Version conflict
 "Version conflict: expected 9, got 10"
